@@ -7,7 +7,7 @@ Projet Python réalisé dans le cadre de la licence MIASHS L2.
 Le projet contient actuellement les classes de base du jeu :
 
 - `Robot.py` : représentation d'un robot ;
-- `Carte.py` : carte et priorité de déplacement ;
+- `Carte.py` : carte et vitesse (priorité du tour de jeu);
 - `Case.py` : case de la carte ;
 - `Direction.py` : directions possibles ;
 - `Drapeau.py` : drapeau associé à une couleur ;
