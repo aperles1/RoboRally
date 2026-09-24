@@ -1,59 +1,39 @@
 # RoboRally
 
-Projet Python réalisé dans le cadre de la licence MIASHS L2.
+Projet Python de RoboRally avec un plateau graphique et quatre robots.
 
-## Contenu
+## Organisation
 
-Le projet contient actuellement les classes de base du jeu :
+- `TypeCase.py` : enum unique des terrains. Une `Case` ne possède qu'un seul
+  `TypeCase` ;
+- `Case.py` : case, murs, terrain et direction des tapis roulants ;
+- `Robot.py` : état d'un robot, déplacements, dégâts et effets des bonus ;
+- `Carte.py` et `Direction.py` : cartes de programmation, vitesses et création
+  des cartes aléatoires ;
+- `Jeu.py` : règles, pioche, ordre des priorités, déplacements, tapis,
+  trous, poussées, tirs et captures de drapeaux ;
+- `Plateau.py` : génération du plateau et rendu pygame ;
+- `main.py` : lancement de la partie automatique.
 
-- `Robot.py` : représentation d'un robot ;
-- `Carte.py` : carte et vitesse (priorité du tour de jeu);
-- `Case.py` : case de la carte ;
-- `Direction.py` : directions possibles ;
-- `Drapeau.py` : drapeau associé à une couleur ;
-- `TypeCase.py` : types de cases disponibles.
-
-## Lancer le projet
-
-Le projet ne contient pas encore de point d'entrée. Depuis la racine du dépôt,
-les modules peuvent être importés dans un script Python avec :
-
-```python
-from Robot import Robot
-from Direction import Direction
-
-robot = Robot("Robo", 0, 0, Direction.NORD, "bleu")
-```
-
-## Contrôler les robots
-
-Pour lancer le plateau graphique :
+## Lancer
 
 ```bash
-python3 Plateau.py
+python3 main.py
 ```
 
-Les touches `1` à `4` sélectionnent un robot. Les flèches, ou les touches
-`Z`, `Q`, `S`, `D`, le déplacent d'une case lorsque le passage est libre.
-La touche `T` lance directement un test visuel : les quatre robots exécutent
-une séquence de déplacements sur le plateau et le résultat apparaît dans la
-fenêtre.
+La partie se joue sur un plateau de 12 x 12 cases. Deux robots bleus
+commencent dans le coin supérieur gauche et deux robots rouges dans le coin
+inférieur droit. Le programme actuel affiche le plateau et les robots sans
+exécuter de cartes ni de déplacements.
 
-## Travail collaboratif
+Les équipiers ne se tirent pas dessus. Une case possède un seul type défini
+dans `TypeCase.py`, les trous détruisent les robots et les tapis les déplacent
+case par case. Un bonus donne soit une attaque infligeant 2 dégâts
+supplémentaires au prochain tir, soit un bouclier qui bloque deux tirs. Les
+bonus et les réparations sont consommés après utilisation. Les bonus,
+réparations, murs et trous sont dessinés directement par pygame, sans
+dépendre d'images externes.
 
-Avant de commencer une modification :
-
-```bash
-git pull
-```
-
-Après avoir travaillé :
-
-```bash
-git add .
-git commit -m "Décrire la modification"
-git push
-```
-
-Pour éviter les conflits, créez de préférence une branche par fonctionnalité
-et proposez une pull request avant de fusionner dans `main`.
+Les commentaires présents dans `Jeu.py` et `Plateau.py` expliquent les
+parties les plus difficiles : poussée en chaîne, ordre des cartes, effets de
+terrain et séparation entre règles et interface.
