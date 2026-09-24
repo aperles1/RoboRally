@@ -25,6 +25,20 @@ from Direction import Direction
 robot = Robot("Robo", 0, 0, Direction.NORD, "bleu")
 ```
 
+## Contrôler les robots
+
+Pour lancer le plateau graphique :
+
+```bash
+python3 Plateau.py
+```
+
+Les touches `1` à `4` sélectionnent un robot. Les flèches, ou les touches
+`Z`, `Q`, `S`, `D`, le déplacent d'une case lorsque le passage est libre.
+La touche `T` lance directement un test visuel : les quatre robots exécutent
+une séquence de déplacements sur le plateau et le résultat apparaît dans la
+fenêtre.
+
 ## Travail collaboratif
 
 Avant de commencer une modification :
