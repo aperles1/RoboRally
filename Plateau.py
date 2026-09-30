@@ -1,3 +1,9 @@
+"""
+Auteur : Perles Alexis
+Date de dernière modification : 30/09/2026
+Contenu : Construit le plateau et gère son affichage pygame.
+"""
+
 """Création du plateau et affichage pygame.
 
 Le rendu est séparé des règles : aucune décision de jeu n'est prise ici.
@@ -23,13 +29,34 @@ PANNEAU_FOND = (35, 44, 56)
 TEXTE = (235, 240, 245)
 SECOND = (155, 170, 185)
 ACCENT = (244, 180, 66)
+POLICE = "DejaVu Sans"
 BLEU = (64, 140, 235)
 ROUGE = (224, 78, 78)
 DOSSIER_IMAGES = Path(__file__).parent / "images"
 
 
+def _origine_affichage(fenetre):
+    """Calcule l'origine centrée de la zone de jeu.
+
+    - Description : place le plateau et son panneau au centre de la fenêtre.
+    - Prérequis : `fenetre` doit être une surface pygame initialisée.
+    - Arguments : `fenetre` (`pygame.Surface`).
+    - Retourne : coordonnées de l'origine (`tuple[int, int]`).
+    """
+    largeur, hauteur = fenetre.get_size()
+    origine_x = (largeur - LARGEUR) // 2
+    origine_y = (hauteur - HAUTEUR) // 2
+    return max(0, origine_x), max(0, origine_y)
+
+
 def creer_images():
-    """Charge les ressources existantes et les met à l'échelle du plateau."""
+    """Charge les images disponibles et les adapte à la taille d'une case.
+
+    - Description : ouvre les fichiers d'image présents puis les redimensionne.
+    - Prérequis : pygame doit être initialisé et le dossier `images` accessible.
+    - Arguments : aucun.
+    - Retourne : images indexées par leur nom logique (`dict[str, pygame.Surface]`).
+    """
     fichiers = {
         "trou": "trou.png",
         "bonus": "bonus.png",
@@ -56,7 +83,13 @@ def creer_images():
 
 
 def creer_plateau(graine=None):
-    """Construit le plateau fixe inspiré du modèle RoboRally fourni."""
+    """Construit la carte fixe et ses obstacles.
+
+    - Description : place les tapis, trous, bonus, réparations et murs du plateau.
+    - Prérequis : `graine` est réservée pour compatibilité et peut être `None`.
+    - Arguments : `graine` (`int` ou `None`).
+    - Retourne : cases et murs (`tuple[list[list[Case]], dict]`).
+    """
     cases = [[Case() for _ in range(TAILLE_PLATEAU)] for _ in range(TAILLE_PLATEAU)]
     cases[2][3] = Case(TypeCase.TAPIS_EST)
     cases[2][4] = Case(TypeCase.TAPIS_EST)
@@ -75,7 +108,7 @@ def creer_plateau(graine=None):
     cases[6][4] = Case(TypeCase.TAPIS_EST)
     cases[4][9] = Case(TypeCase.TAPIS_NORD)
     cases[5][9] = Case(TypeCase.TAPIS_NORD)
-    cases[6][9] = Case(TypeCase.TAPIS_OUEST, rotation=180)
+    cases[6][9] = Case(TypeCase.TAPIS_NORD, rotation=180)
     cases[6][8] = Case(TypeCase.TAPIS_EST)
     cases[6][7] = Case(TypeCase.TAPIS_EST)
     tapis = set()
@@ -129,9 +162,17 @@ def dessiner(
     murs,
     images,
 ):
-    """Dessine le plateau, ses robots, les drapeaux et le panneau de jeu."""
+    """Dessine tous les éléments visibles de la partie.
+
+    - Description : rend les cases, murs, drapeaux, robots, panneau et victoire.
+    - Prérequis : pygame doit être initialisé et `jeu` doit fournir ses éléments.
+    - Arguments : `fenetre` (`pygame.Surface`), `jeu` (`Jeu`), `murs` (`dict`),
+      `images` (`dict[str, pygame.Surface]`).
+    - Retourne : rien (`None`).
+    """
     fenetre.fill(FOND)
-    origine = (MARGE, MARGE)
+    decalage_x, decalage_y = _origine_affichage(fenetre)
+    origine = (decalage_x + MARGE, decalage_y + MARGE)
     for y, ligne in enumerate(jeu.cases):
         for x, case in enumerate(ligne):
             rectangle = pygame.Rect(origine[0] + x * TAILLE_CASE, origine[1] + y * TAILLE_CASE, TAILLE_CASE, TAILLE_CASE)
@@ -165,6 +206,14 @@ def dessiner(
 
 
 def _dessiner_case(fenetre, rectangle, type_case, images, rotation):
+    """Dessine le fond et le contenu graphique d'une case.
+
+    - Description : utilise une image si elle existe, sinon dessine une forme de secours.
+    - Prérequis : `fenetre` doit être une surface pygame et `type_case` valide.
+    - Arguments : `fenetre` (`pygame.Surface`), `rectangle` (`pygame.Rect`),
+      `type_case` (`TypeCase`), `images` (`dict`), `rotation` (`int` ou `None`).
+    - Retourne : rien (`None`).
+    """
     couleurs = {
         TypeCase.VIDE: (76, 88, 101),
         TypeCase.TAPIS_NORD: (53, 112, 124), TypeCase.TAPIS_EST: (53, 112, 124),
@@ -204,6 +253,14 @@ def _dessiner_case(fenetre, rectangle, type_case, images, rotation):
 
 
 def _dessiner_murs(fenetre, rectangle, directions, images):
+    """Dessine les murs présents autour d'une case.
+
+    - Description : affiche une texture de mur ou un segment de remplacement.
+    - Prérequis : les directions doivent appartenir à `Direction`.
+    - Arguments : `fenetre` (`pygame.Surface`), `rectangle` (`pygame.Rect`),
+      `directions` (itérable de `Direction`), `images` (`dict`).
+    - Retourne : rien (`None`).
+    """
     image = images.get("mur")
     if image is not None:
         for direction in directions:
@@ -220,7 +277,14 @@ def _dessiner_murs(fenetre, rectangle, directions, images):
 
 
 def _dessiner_mur_sur_bord(fenetre, rectangle, image, direction):
-    """Place le mur sur son bord en tournant la texture si nécessaire."""
+    """Place une texture de mur sur le bord demandé.
+
+    - Description : redimensionne et tourne l'image pour suivre la direction.
+    - Prérequis : `image` doit être une surface pygame et `direction` valide.
+    - Arguments : `fenetre` (`pygame.Surface`), `rectangle` (`pygame.Rect`),
+      `image` (`pygame.Surface`), `direction` (`Direction`).
+    - Retourne : rien (`None`).
+    """
     epaisseur = 11
     bande = pygame.transform.scale(image, (rectangle.width, epaisseur))
     angles = {
@@ -241,17 +305,33 @@ def _dessiner_mur_sur_bord(fenetre, rectangle, image, direction):
 
 
 def _dessiner_robot(fenetre: pygame.Surface, x: int, y: int, robot) -> None:
+    """Dessine un robot et une flèche indiquant son orientation.
+
+    - Description : représente le robot par un cercle coloré et son orientation.
+    - Prérequis : pygame doit être initialisé et `robot.orientation` valide.
+    - Arguments : `fenetre` (`pygame.Surface`), `x` (`int`), `y` (`int`),
+      `robot` (`Robot`).
+    - Retourne : rien (`None`).
+    """
     couleur = BLEU if robot.couleur == "bleu" else ROUGE
     centre = (x + TAILLE_CASE // 2, y + TAILLE_CASE // 2)
     pygame.draw.circle(fenetre, couleur, centre, 21)
     pygame.draw.circle(fenetre, (235, 240, 245), centre, 21, 2)
-    dx, dy = robot.direction.value
+    dx, dy = robot.orientation.value
     pointe = (centre[0] + dx * 25, centre[1] + dy * 25)
     pygame.draw.line(fenetre, (25, 28, 33), centre, pointe, 7)
-    _fleche(fenetre, pointe, robot.direction, 9, (25, 28, 33))
+    _fleche(fenetre, pointe, robot.orientation, 9, (25, 28, 33))
 
 
 def _dessiner_drapeau(fenetre, x, y, couleur, images):
+    """Dessine un drapeau avec son image ou une forme de secours.
+
+    - Description : affiche le drapeau de l'équipe à la position indiquée.
+    - Prérequis : `couleur` doit identifier une équipe connue.
+    - Arguments : `fenetre` (`pygame.Surface`), `x` (`int`), `y` (`int`),
+      `couleur` (`str`), `images` (`dict`).
+    - Retourne : rien (`None`).
+    """
     image = images.get("drapeau_" + couleur)
     if image is not None:
         fenetre.blit(image, (x, y))
@@ -262,14 +342,27 @@ def _dessiner_drapeau(fenetre, x, y, couleur, images):
 
 
 def _dessiner_panneau(fenetre: pygame.Surface, jeu: Jeu) -> None:
-    x = MARGE * 2 + TAILLE_PLATEAU * TAILLE_CASE
-    pygame.draw.rect(fenetre, PANNEAU_FOND, (x, MARGE, PANNEAU, HAUTEUR - 2 * MARGE), border_radius=12)
-    titre = pygame.font.Font(None, 38)
-    petite = pygame.font.Font(None, 21)
-    section = pygame.font.Font(None, 26)
-    fenetre.blit(titre.render("ROBO RALLY", True, ACCENT), (x + 22, 35))
-    fenetre.blit(petite.render("MODE PRESENTATION", True, SECOND), (x + 23, 70))
-    y = 108
+    """Dessine le panneau latéral d'informations de la partie.
+
+    - Description : affiche les robots, les drapeaux et l'état du tour.
+    - Prérequis : pygame doit être initialisé et `jeu` correctement initialisé.
+    - Arguments : `fenetre` (`pygame.Surface`), `jeu` (`Jeu`).
+    - Retourne : rien (`None`).
+    """
+    decalage_x, decalage_y = _origine_affichage(fenetre)
+    x = decalage_x + MARGE * 2 + TAILLE_PLATEAU * TAILLE_CASE
+    pygame.draw.rect(
+        fenetre,
+        PANNEAU_FOND,
+        (x, decalage_y + MARGE, PANNEAU, HAUTEUR - 2 * MARGE),
+        border_radius=12,
+    )
+    titre = pygame.font.SysFont(POLICE, 38, bold=True)
+    petite = pygame.font.SysFont(POLICE, 21)
+    section = pygame.font.SysFont(POLICE, 26, bold=True)
+    fenetre.blit(titre.render("ROBO RALLY", True, ACCENT), (x + 22, decalage_y + 35))
+    fenetre.blit(petite.render("MODE PRESENTATION", True, SECOND), (x + 23, decalage_y + 70))
+    y = decalage_y + 108
     fenetre.blit(section.render("ÉQUIPES", True, ACCENT), (x + 22, y))
     y += 31
     for robot in jeu.robots:
@@ -282,47 +375,90 @@ def _dessiner_panneau(fenetre: pygame.Surface, jeu: Jeu) -> None:
             etat += "  ATTAQUE +2"
         fenetre.blit(petite.render(f"{robot.nom}   {etat}", True, TEXTE), (x + 45, y))
         y += 27
-    y += 12
-    fenetre.blit(section.render("CARTE ACTUELLE", True, ACCENT), (x + 22, y))
+    y += 20
+    fenetre.blit(section.render("DRAPEAUX", True, ACCENT), (x + 22, y))
     y += 32
-    actuelle = jeu.carte_actuelle()
-    if actuelle:
-        robot, carte = actuelle
-        fenetre.blit(petite.render(robot.nom, True, TEXTE), (x + 25, y))
-        _fleche(fenetre, (x + 50, y + 42), carte.direction, 18, ACCENT)
-        fenetre.blit(petite.render(carte.direction.name, True, TEXTE), (x + 82, y + 35))
-        fenetre.blit(petite.render(f"PRIORITÉ {carte.vitesse}", True, SECOND), (x + 82, y + 55))
-    y += 100
+    for drapeau, _, _ in jeu.drapeaux:
+        couleur = BLEU if drapeau.couleur == "bleu" else ROUGE
+        pygame.draw.circle(fenetre, couleur, (x + 30, y + 9), 7)
+        fenetre.blit(
+            petite.render(f"Drapeau {drapeau.couleur}", True, TEXTE),
+            (x + 45, y),
+        )
+        y += 27
+    y += 12
     fenetre.blit(section.render("ÉTAT DU TOUR", True, ACCENT), (x + 22, y))
     fenetre.blit(petite.render(f"{len(jeu.cartes_du_tour)} cartes restantes", True, TEXTE), (x + 25, y + 32))
-    fenetre.blit(petite.render("Robots immobiles", True, SECOND), (x + 25, y + 58))
+    fenetre.blit(petite.render("IA active", True, SECOND), (x + 25, y + 58))
 
 
 def _dessiner_victoire(fenetre: pygame.Surface, equipe: str) -> None:
-    """Affiche une couche finale lisible sans interrompre brutalement pygame."""
+    """Affiche l'écran de victoire de l'équipe gagnante.
+
+    - Description : ajoute un voile sombre et un message sans fermer pygame.
+    - Prérequis : `fenetre` doit être une surface pygame.
+    - Arguments : `fenetre` (`pygame.Surface`), `equipe` (`str`).
+    - Retourne : rien (`None`).
+    """
     voile = pygame.Surface(fenetre.get_size(), pygame.SRCALPHA)
     voile.fill((7, 10, 15, 205))
     fenetre.blit(voile, (0, 0))
     couleur = BLEU if equipe == "bleu" else ROUGE
-    titre = pygame.font.Font(None, 72).render("VICTOIRE", True, ACCENT)
-    message = pygame.font.Font(None, 42).render(
+    titre = pygame.font.SysFont(POLICE, 72, bold=True).render("VICTOIRE", True, ACCENT)
+    message = pygame.font.SysFont(POLICE, 42, bold=True).render(
         f"EQUIPE {equipe.upper()}",
         True,
         couleur,
     )
-    sous_titre = pygame.font.Font(None, 26).render(
+    sous_titre = pygame.font.SysFont(POLICE, 26).render(
         "Tous les drapeaux sont captures ou les adversaires sont elimines.",
         True,
         TEXTE,
     )
-    fenetre.blit(titre, titre.get_rect(center=(LARGEUR // 2 - PANNEAU // 2, HAUTEUR // 2 - 55)))
-    fenetre.blit(message, message.get_rect(center=(LARGEUR // 2 - PANNEAU // 2, HAUTEUR // 2 + 10)))
-    fenetre.blit(sous_titre, sous_titre.get_rect(center=(LARGEUR // 2 - PANNEAU // 2, HAUTEUR // 2 + 55)))
+    centre = (fenetre.get_width() // 2, fenetre.get_height() // 2)
+    fenetre.blit(titre, titre.get_rect(center=(centre[0], centre[1] - 55)))
+    fenetre.blit(message, message.get_rect(center=(centre[0], centre[1] + 10)))
+    fenetre.blit(sous_titre, sous_titre.get_rect(center=(centre[0], centre[1] + 55)))
+
+
+def afficher_tir(fenetre, jeu, murs, images, horloge, tireur, cible):
+    """Affiche brièvement le rayon entre un robot et sa cible.
+
+    - Description : dessine le plateau puis une ligne lumineuse entre les robots.
+    - Prérequis : pygame doit être initialisé et les robots doivent être actifs.
+    - Arguments : `fenetre` (`pygame.Surface`), `jeu` (`Jeu`), `murs` (`dict`),
+      `images` (`dict`), `horloge` (`pygame.time.Clock`), `tireur` (`Robot`),
+      `cible` (`Robot`).
+    - Retourne : rien (`None`).
+    """
+    dessiner(fenetre, jeu, murs, images)
+    decalage_x, decalage_y = _origine_affichage(fenetre)
+    origine = (decalage_x + MARGE, decalage_y + MARGE)
+    depart = (
+        origine[0] + tireur.x * TAILLE_CASE + TAILLE_CASE // 2,
+        origine[1] + tireur.y * TAILLE_CASE + TAILLE_CASE // 2,
+    )
+    arrivee = (
+        origine[0] + cible.x * TAILLE_CASE + TAILLE_CASE // 2,
+        origine[1] + cible.y * TAILLE_CASE + TAILLE_CASE // 2,
+    )
+    pygame.draw.line(fenetre, (255, 245, 180), depart, arrivee, 10)
+    pygame.draw.line(fenetre, (255, 255, 255), depart, arrivee, 4)
+    pygame.draw.circle(fenetre, (255, 80, 50), arrivee, 25, 4)
+    pygame.display.flip()
+    horloge.tick(8)
 
 
 def _fleche(fenetre, centre, direction, taille, couleur) -> None:
+    """Dessine une flèche orientée autour d'un point central.
+
+    - Description : calcule la pointe et les deux côtés puis les dessine.
+    - Prérequis : `direction` doit être un membre de `Direction`.
+    - Arguments : `fenetre` (`pygame.Surface`), `centre` (`tuple[int, int]`),
+      `direction` (`Direction`), `taille` (`int`), `couleur` (`tuple[int, int, int]`).
+    - Retourne : rien (`None`).
+    """
     dx, dy = direction.value
     pointe = (centre[0] + dx * taille, centre[1] + dy * taille)
     pygame.draw.line(fenetre, couleur, (centre[0] - dx * taille // 2, centre[1] - dy * taille // 2), pointe, max(3, taille // 4))
     pygame.draw.polygon(fenetre, couleur, (pointe, (pointe[0] - dx * taille // 2 - dy * taille // 2, pointe[1] - dy * taille // 2 + dx * taille // 2), (pointe[0] - dx * taille // 2 + dy * taille // 2, pointe[1] - dy * taille // 2 - dx * taille // 2)))
-

@@ -1,39 +1,27 @@
 # RoboRally
 
-Projet Python de RoboRally avec un plateau graphique et quatre robots.
+Projet Python de RoboRally avec affichage graphique `pygame`.
 
-## Organisation
-
-- `TypeCase.py` : enum unique des terrains. Une `Case` ne possède qu'un seul
-  `TypeCase` ;
-- `Case.py` : case, murs, terrain et direction des tapis roulants ;
-- `Robot.py` : état d'un robot, déplacements, dégâts et effets des bonus ;
-- `Carte.py` et `Direction.py` : cartes de programmation, vitesses et création
-  des cartes aléatoires ;
-- `Jeu.py` : règles, pioche, ordre des priorités, déplacements, tapis,
-  trous, poussées, tirs et captures de drapeaux ;
-- `Plateau.py` : génération du plateau et rendu pygame ;
-- `main.py` : lancement de la partie automatique.
-
-## Lancer
+## Lancer le projet
 
 ```bash
 python3 main.py
 ```
 
-La partie se joue sur un plateau de 12 x 12 cases. Deux robots bleus
-commencent dans le coin supérieur gauche et deux robots rouges dans le coin
-inférieur droit. Le programme actuel affiche le plateau et les robots sans
-exécuter de cartes ni de déplacements.
+La partie se déroule automatiquement sur un plateau de 12 x 12 cases avec
+deux robots bleus et deux robots rouges.
 
-Les équipiers ne se tirent pas dessus. Une case possède un seul type défini
-dans `TypeCase.py`, les trous détruisent les robots et les tapis les déplacent
-case par case. Un bonus donne soit une attaque infligeant 2 dégâts
-supplémentaires au prochain tir, soit un bouclier qui bloque deux tirs. Les
-bonus et les réparations sont consommés après utilisation. Les bonus,
-réparations, murs et trous sont dessinés directement par pygame, sans
-dépendre d'images externes.
+## Fichiers du projet
 
-Les commentaires présents dans `Jeu.py` et `Plateau.py` expliquent les
-parties les plus difficiles : poussée en chaîne, ordre des cartes, effets de
-terrain et séparation entre règles et interface.
+- `main.py` : lance la partie et la boucle graphique ;
+- `Jeu.py` : contient les règles, déplacements, tirs et victoires ;
+- `Robot.py` : définit les robots, leurs PV, bonus et orientations ;
+- `Perceptron.py` : contrôle les décisions de l'IA et le choix des cartes ;
+- `Plateau.py` : crée et affiche le plateau avec pygame ;
+- `Case.py` : définit les cases, terrains et murs ;
+- `TypeCase.py` : liste les types de cases ;
+- `Direction.py` : définit les directions cardinales ;
+- `Carte.py` : définit les cartes de déplacement ;
+- `Drapeau.py` : définit les drapeaux et leurs captures ;
+- `images/` : contient les images utilisées pour l'affichage ;
+- `README.md` : présente le projet et son lancement.
