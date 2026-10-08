@@ -6,22 +6,23 @@ Contenu : Lance la partie et orchestre la boucle graphique pygame.
 
 """Lancement de RoboRally avec les robots contrôlés par une IA."""
 
+import argparse
 import pygame
 
-from Drapeau import Drapeau
-from Direction import Direction
-from Jeu import Jeu
+from Entitées.Drapeau import Drapeau
+from Entitées.Direction import Direction
+from Jeu.Jeu import Jeu
 from Perceptron import ControleurRobot
-from Plateau import (
-    HAUTEUR,
-    LARGEUR,
+from Perceptron.Entrainement import EntraineurPerceptron
+from Perceptron.ModelePerceptron import Perceptron
+from Jeu.Plateau import (
     TAILLE_PLATEAU,
     afficher_tir,
     dessiner,
     creer_images,
     creer_plateau,
 )
-from Robot import Robot
+from Entitées.Robot import Robot
 
 
 def creer_jeu():
@@ -127,5 +128,68 @@ def afficher_animation(fenetre, jeu, murs, images, horloge):
     horloge.tick(12)
 
 
+def lancer_entrainement(nombre_parties, chemin_modele, nombre_max_tours=100):
+    """Lance l'entraînement autonome de l'IA depuis le programme principal.
+
+    - Description : charge un modèle existant s'il est présent, joue plusieurs
+      parties sans pygame et sauvegarde les nouveaux paramètres.
+    - Prérequis : `nombre_parties` et `nombre_max_tours` doivent être positifs.
+    - Arguments : `nombre_parties` (`int`), `chemin_modele` (`str`),
+      `nombre_max_tours` (`int`).
+    - Retourne : statistiques des parties (`list[dict]`).
+    """
+    try:
+        perceptron = Perceptron.charger(chemin_modele)
+    except FileNotFoundError:
+        perceptron = None
+    controleur = ControleurRobot(perceptron)
+    entraineur = EntraineurPerceptron(
+        creer_jeu, controleur, nombre_max_tours
+    )
+    resultats = entraineur.entrainer_et_sauvegarder(
+        nombre_parties, chemin_modele
+    )
+    print(f"{nombre_parties} partie(s) d'entraînement terminée(s).")
+    print(f"Modèle sauvegardé dans : {chemin_modele}")
+    return resultats
+
+
+def analyser_arguments():
+    """Construit l'interface en ligne de commande du programme.
+
+    - Description : permet de choisir entre le jeu graphique et l'entraînement.
+    - Prérequis : aucun.
+    - Arguments : aucun.
+    - Retourne : arguments analysés (`argparse.Namespace`).
+    """
+    analyseur = argparse.ArgumentParser(description="RoboRally")
+    analyseur.add_argument(
+        "--entrainer",
+        type=int,
+        metavar="PARTIES",
+        help="entraîne l'IA sur le nombre de parties indiqué",
+    )
+    analyseur.add_argument(
+        "--modele",
+        default="modele_perceptron.json",
+        help="fichier JSON utilisé pour charger et sauvegarder les poids",
+    )
+    analyseur.add_argument(
+        "--tours-max",
+        type=int,
+        default=100,
+        help="nombre maximal de cartes jouées par partie",
+    )
+    return analyseur.parse_args()
+
+
 if __name__ == "__main__":
-    main()
+    arguments = analyser_arguments()
+    if arguments.entrainer is not None:
+        lancer_entrainement(
+            arguments.entrainer,
+            arguments.modele,
+            arguments.tours_max,
+        )
+    else:
+        main()

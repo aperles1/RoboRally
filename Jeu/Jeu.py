@@ -12,10 +12,10 @@ l'interface graphique.
 
 import random
 
-from Carte import Carte
-from Direction import Direction
-from Robot import Robot
-from TypeCase import TypeCase
+from Entitées.Carte import Carte
+from Entitées.Direction import Direction
+from Entitées.Robot import Robot
+from Entitées.TypeCase import TypeCase
 
 
 class Jeu:
@@ -57,7 +57,7 @@ class Jeu:
         """Prépare les cartes du nouveau tour.
 
         - Description : tire cinq cartes aléatoires ou utilise les cartes fournies,
-          puis classe les cartes par priorité décroissante.
+          puis organise les cartes en manches, une carte par robot et par manche.
         - Prérequis : les robots doivent posséder l'attribut `est_detruit`.
         - Arguments : `cartes_par_robot` (`dict[int, list[Carte]]` ou `None`).
         - Retourne : rien (`None`).
@@ -75,16 +75,13 @@ class Jeu:
             for robot in self.robots if not robot.est_detruit
         }
         self.cartes_du_tour = []
-        for robot in self.robots:
-            if robot.est_detruit:
-                continue
-            for carte in self.mains[id(robot)]:
-                self._ajouter_carte_dans_ordre(robot, carte)
+        self._organiser_cartes_par_manches()
 
     def installer_cartes(self, cartes_par_robot):
         """Installe les cartes choisies pour le tour courant.
 
-        - Description : associe les cartes aux robots actifs et les ordonne par vitesse.
+        - Description : associe les cartes aux robots actifs et les organise en
+          manches, une carte par robot et par manche, selon la vitesse.
         - Prérequis : les clés du dictionnaire doivent être des identifiants de robots.
         - Arguments : `cartes_par_robot` (`dict[int, list[Carte]]`).
         - Retourne : rien (`None`).
@@ -96,31 +93,43 @@ class Jeu:
             if not robot.est_detruit
         }
         self.cartes_du_tour = []
-        for robot in self.robots:
-            if robot.est_detruit:
-                continue
-            for carte in self.mains[id(robot)]:
-                self._ajouter_carte_dans_ordre(robot, carte)
+        self._organiser_cartes_par_manches()
 
-    def _ajouter_carte_dans_ordre(self, robot, carte):
-        """Ajoute une carte à la file selon sa vitesse.
+    def _organiser_cartes_par_manches(self):
+        """Construit la file d'exécution des cartes du tour.
 
-        - Description : insère la carte avant la première carte moins rapide.
-        - Prérequis : `carte` doit avoir un attribut `vitesse`.
-        - Arguments : `robot` (`Robot`), `carte` (`Carte`).
-        - Retourne : rien (`None`).
+        Chaque robot trie sa main par vitesse décroissante. La première manche
+        contient donc la carte la plus rapide de chaque robot, puis les
+        manches suivantes contiennent les cartes restantes dans le même ordre.
+        Les cartes d'une manche sont ensuite jouées par vitesse décroissante.
         """
-        nouvelle_carte = (robot, carte)
-        position = 0
-        while position < len(self.cartes_du_tour):
-            carte_actuelle = self.cartes_du_tour[position][1]
-            if carte.vitesse > carte_actuelle.vitesse:
-                break
-            position += 1
-        self.cartes_du_tour.insert(position, nouvelle_carte)
+        mains_triees = {
+            id(robot): sorted(
+                self.mains[id(robot)],
+                key=lambda carte: carte.vitesse,
+                reverse=True,
+            )
+            for robot in self.robots
+            if not robot.est_detruit
+        }
+        nombre_de_manches = max(
+            (len(cartes) for cartes in mains_triees.values()),
+            default=0,
+        )
+        for index_manche in range(nombre_de_manches):
+            manche = [
+                (robot, mains_triees[id(robot)][index_manche])
+                for robot in self.robots
+                if (
+                    not robot.est_detruit
+                    and index_manche < len(mains_triees[id(robot)])
+                )
+            ]
+            manche.sort(key=lambda element: element[1].vitesse, reverse=True)
+            self.cartes_du_tour.extend(manche)
 
     def carte_actuelle(self):
-        """Retourne la carte prioritaire encore à jouer.
+        """Retourne la carte prioritaire de la manche courante.
 
         - Description : lit le premier élément de la file des cartes du tour.
         - Prérequis : aucun.

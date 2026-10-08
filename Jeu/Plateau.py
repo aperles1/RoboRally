@@ -1,6 +1,6 @@
 """
 Auteur : Perles Alexis
-Date de dernière modification : 30/09/2026
+Date de dernière modification : 04/10/2026
 Contenu : Construit le plateau et gère son affichage pygame.
 """
 
@@ -13,10 +13,10 @@ from pathlib import Path
 
 import pygame
 
-from Case import Case
-from Direction import Direction
-from Jeu import Jeu
-from TypeCase import TypeCase
+from Entitées.Case import Case
+from Entitées.Direction import Direction
+from Jeu.Jeu import Jeu
+from Entitées.TypeCase import TypeCase
 
 TAILLE_CASE = 60
 TAILLE_PLATEAU = 12
@@ -32,7 +32,8 @@ ACCENT = (244, 180, 66)
 POLICE = "DejaVu Sans"
 BLEU = (64, 140, 235)
 ROUGE = (224, 78, 78)
-DOSSIER_IMAGES = Path(__file__).parent / "images"
+# Les images sont stockées à la racine du projet, et non dans `Jeu/images`.
+DOSSIER_IMAGES = Path(__file__).resolve().parent.parent / "images"
 
 
 def _origine_affichage(fenetre):

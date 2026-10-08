@@ -4,7 +4,7 @@ Date de dernière modification : 30/09/2026
 Contenu : Modélise les robots, leurs déplacements et leurs états.
 """
 
-from Direction import Direction
+from Entitées.Direction import Direction
 
 
 class Robot:

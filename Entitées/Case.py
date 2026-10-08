@@ -4,8 +4,8 @@ Date de dernière modification : 30/09/2026
 Contenu : Modélise les cases du plateau, leurs terrains et leurs murs.
 """
 
-from Direction import Direction
-from TypeCase import TypeCase
+from Entitées.Direction import Direction
+from Entitées.TypeCase import TypeCase
 
 
 class Case:

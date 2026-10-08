@@ -6,7 +6,7 @@ Contenu : Définit les cartes de déplacement et leur génération aléatoire.
 
 from dataclasses import dataclass
 
-from Direction import Direction
+from Entitées.Direction import Direction
 
 
 @dataclass
