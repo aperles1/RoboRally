@@ -13,7 +13,7 @@ l'interface graphique.
 import random
 
 from Entitées.Carte import Carte
-from Entitées.Direction import Direction
+from Entitées.Direction import Direction, ActionCarte
 from Entitées.Robot import Robot
 from Entitées.TypeCase import TypeCase
 
@@ -232,9 +232,20 @@ class Jeu:
         self.mains[id(robot)].remove(carte)
         self.derniers_deplacements = []
         if jouer and not robot.est_detruit:
-            robot.orientation = carte.direction
-            self._avancer(robot, carte.direction, set())
+            robot.executer_action(carte.action)
+            # Si l'action effectuée était un avancement, on gère le déplacement en avant
+            if carte.action == ActionCarte.AVANCER:
+                self._avancer(robot, robot.orientation, set())
+            elif carte.action == ActionCarte.RECULER:
+                # Calcule la direction opposée pour le déplacement de recul
+                dx, dy = robot.orientation.value
+                direction_opposee = Direction((-dx, -dy))
+                self._avancer(robot, direction_opposee, set())
             self._tirer(robot)
+        #if jouer and not robot.est_detruit:
+            #robot.orientation = carte.direction
+           # self._avancer(robot, carte.direction, set())
+           # self._tirer(robot)
         self._actualiser_victoire()
         if not self.cartes_du_tour:
             self._actualiser_victoire()
@@ -321,7 +332,7 @@ class Jeu:
             return False
         robot.positions_precedentes.append(ancienne)
         del robot.positions_precedentes[:-4]
-        robot.deplacer(direction)
+        robot.deplacer(ActionCarte)
         self.derniers_deplacements.append((robot, ancienne, (robot.x, robot.y)))
         if self.animation_callback is not None:
             self.animation_callback()

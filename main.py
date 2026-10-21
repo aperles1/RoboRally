@@ -7,14 +7,13 @@ Contenu : Lance la partie et orchestre la boucle graphique pygame.
 """Lancement de RoboRally avec les robots contrôlés par une IA."""
 
 import argparse
+
 import pygame
 
-from Entitées.Drapeau import Drapeau
 from Entitées.Direction import Direction
+from Entitées.Drapeau import Drapeau
+from Entitées.Robot import Robot
 from Jeu.Jeu import Jeu
-from Perceptron import ControleurRobot
-from Perceptron.Entrainement import EntraineurPerceptron
-from Perceptron.ModelePerceptron import Perceptron
 from Jeu.Plateau import (
     TAILLE_PLATEAU,
     afficher_tir,
@@ -22,7 +21,9 @@ from Jeu.Plateau import (
     creer_images,
     creer_plateau,
 )
-from Entitées.Robot import Robot
+from Perceptron import ControleurRobot
+from Perceptron.Entrainement import EntraineurPerceptron
+from Perceptron.ModelePerceptron import Perceptron
 
 
 def creer_jeu():

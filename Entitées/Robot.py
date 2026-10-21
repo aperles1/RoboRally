@@ -4,13 +4,13 @@ Date de dernière modification : 30/09/2026
 Contenu : Modélise les robots, leurs déplacements et leurs états.
 """
 
-from Entitées.Direction import Direction
+from Entitées.Direction import ActionCarte,Direction
 
 
 class Robot:
     """Robot jouable, rattaché à une équipe par sa couleur."""
 
-    def __init__(self, nom: str, x: int, y: int, orientation: Direction, couleur: str):
+    def __init__(self, nom: str, x: int, y: int, orientation: ActionCarte, couleur: str):
         """Construit un robot avec sa position et son état initial.
 
         - Description : initialise l'identité, l'équipe, les points de vie et les bonus.
@@ -30,7 +30,7 @@ class Robot:
         self.bouclier = 0
         self.positions_precedentes = []
 
-    def deplacer(self, direction: Direction) -> None:
+    def deplacer(self, direction: ActionCarte) -> None:
         """Déplace le robot d'une case dans une direction.
 
         - Description : ajoute le vecteur de direction aux coordonnées du robot.
@@ -73,3 +73,20 @@ class Robot:
                 self.bonus_degats = 2
             else:
                 self.bouclier = 2
+
+    def executer_action(self, action: ActionCarte) -> None:
+        """Exécute une action unique : soit avancer/reculer, soit tourner."""
+        if action == ActionCarte.AVANCER:
+            self.deplacer(self.orientation)
+        elif action == ActionCarte.RECULER:
+            dx, dy = self.orientation.value
+            self.x -= dx
+            self.y -= dy
+        elif action == ActionCarte.TOURNER_GAUCHE:
+            ordre = [Direction.NORD, Direction.OUEST, Direction.SUD, Direction.EST]
+            idx = ordre.index(self.orientation)
+            self.orientation = ordre[(idx + 1) % 4]
+        elif action == ActionCarte.TOURNER_DROITE:
+            ordre = [Direction.NORD, Direction.EST, Direction.SUD, Direction.OUEST]
+            idx = ordre.index(self.orientation)
+            self.orientation = ordre[(idx + 1) % 4]

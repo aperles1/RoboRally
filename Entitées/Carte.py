@@ -6,16 +6,17 @@ Contenu : Définit les cartes de déplacement et leur génération aléatoire.
 
 from dataclasses import dataclass
 
-from Entitées.Direction import Direction
+
+from Entitées.Direction import ActionCarte
 
 
 @dataclass
 class Carte:
-    direction: Direction
+    action: ActionCarte
     vitesse: int
 
     @staticmethod
-    def aleatoire(aleatoire):
+    def aleatoire(source_aleatoire):
         """Crée une carte avec une direction et une vitesse aléatoires.
 
         - Description : tire une direction puis une priorité entre 1 et 100.
@@ -23,7 +24,7 @@ class Carte:
         - Arguments : `aleatoire` (`random.Random` ou objet compatible).
         - Retourne : carte générée (`Carte`).
         """
-        return Carte(
-            aleatoire.choice(list(Direction)),
-            aleatoire.randint(1, 100),
-        )
+
+        action_choisie= source_aleatoire.choice(list(ActionCarte))
+        vitesse_choisie = source_aleatoire.randint(1, 100)
+        return Carte(action=action_choisie, vitesse=vitesse_choisie)
