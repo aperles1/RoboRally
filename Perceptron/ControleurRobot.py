@@ -6,6 +6,7 @@ Contenu : Contrôle les robots et sélectionne les cartes avec un perceptron.
 
 from Entitées.Carte import Carte
 from Perceptron.Caracteristiques import (
+    NOMS_CARACTERISTIQUES,
     direction_possible,
     extraire_caracteristiques,
 )
@@ -16,22 +17,25 @@ from Perceptron.ModelePerceptron import Perceptron
 # l'apprentissage et peuvent ensuite être modifiés par mettre_a_jour.
 POIDS_INITIAUX = (
     1000.0, 20.0, 3.0, 10.0, 12.0, 6.0,
-    -100.0, 12.0, -18.0, -18.0, -30.0, 1.0,
+    -100.0, 35.0, -18.0, -18.0, -30.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0,
+    30.0, 100.0,
 )
 
 
-def score_perceptron(jeu, robot, direction, perceptron=None):
+def score_perceptron(jeu, robot, action, perceptron=None):
     """Calcule le score d'une action avec le modèle du perceptron.
 
     - Description : extrait les caractéristiques de l'action puis applique la
       formule linéaire du perceptron.
-    - Prérequis : `direction` doit être une direction valide.
-    - Arguments : `jeu` (`Jeu`), `robot` (`Robot`), `direction` (`Direction`),
+    - Prérequis : `action` doit être une action de carte valide.
+    - Arguments : `jeu` (`Jeu`), `robot` (`Robot`), `action` (`ActionCarte`),
       `perceptron` (`Perceptron` ou `None`).
     - Retourne : score de l'action (`float`).
     """
     modele = perceptron or Perceptron(POIDS_INITIAUX)
-    caracteristiques = extraire_caracteristiques(jeu, robot, direction)
+    caracteristiques = extraire_caracteristiques(jeu, robot, action)
     return modele.calculer(caracteristiques)
 
 
@@ -48,6 +52,9 @@ class ControleurRobot:
         - Retourne : rien (`None`).
         """
         self.perceptron = perceptron or Perceptron(POIDS_INITIAUX)
+        nombre_manquant = len(NOMS_CARACTERISTIQUES) - len(self.perceptron.poids)
+        if nombre_manquant > 0:
+            self.perceptron.poids.extend([0.0] * nombre_manquant)
 
     def extraire_caracteristiques(self, jeu, robot, carte):
         """Extrait les données du jeu correspondant à une carte.
@@ -59,7 +66,7 @@ class ControleurRobot:
         - Retourne : caractéristiques de la carte (`list[float]`).
         """
         return extraire_caracteristiques(
-            jeu, robot, carte.direction, carte.vitesse
+            jeu, robot, carte.action, carte.vitesse
         )
 
     def score_carte(self, jeu, robot, carte):

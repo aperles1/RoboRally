@@ -4,6 +4,7 @@ Date de dernière modification : 04/10/2026
 Contenu : Extrait et transforme l'état du jeu en caractéristiques numériques.
 """
 
+from Entitées.Direction import ActionCarte, Direction
 from Entitées.TypeCase import TypeCase
 
 
@@ -20,6 +21,18 @@ NOMS_CARACTERISTIQUES = (
     "position_precedente",
     "reste_sur_place",
     "vitesse_carte",
+    "pv_robot",
+    "distance_ennemi",
+    "allies_actifs",
+    "ennemis_actifs",
+    "drapeaux_captures",
+    "bonus_degats",
+    "bouclier",
+    "action_avancer",
+    "action_tourner_droite",
+    "action_tourner_gauche",
+    "capture_drapeau",
+    "victoire_possible",
 )
 
 
@@ -78,28 +91,29 @@ def allie_plus_proche_du_drapeau(jeu, robot, position_drapeau):
 
 
 def destination_apres_tapis(jeu, x, y):
-    """Suit les tapis roulants jusqu'à une case stable ou une boucle.
+    """Calcule la destination après un seul déplacement de tapis.
 
-    - Description : simule les déplacements successifs des tapis sans modifier
-      la position réelle du robot.
+    - Description : simule le déplacement d'une manche sans modifier la
+      position réelle du robot. Les tapis suivants seront traités à la manche
+      suivante.
     - Prérequis : `(x, y)` doit être une position du plateau ou une position
       adjacente à celui-ci.
     - Arguments : `jeu` (`Jeu`), `x` (`int`), `y` (`int`).
     - Retourne : destination finale (`tuple[int, int]`).
     """
-    depart = (x, y)
-    visites = set()
-    while jeu._dans_plateau(x, y) and (x, y) not in visites:
-        visites.add((x, y))
-        case = jeu.cases[y][x]
-        if case.type_case == TypeCase.TROU or not case.type_case.est_tapis:
-            return x, y
-        direction = case.direction_tapis()
-        suivant = (x + direction.value[0], y + direction.value[1])
-        if not jeu._dans_plateau(*suivant) or not jeu._passage_possible(x, y, direction):
-            return x, y
-        x, y = suivant
-    return depart if (x, y) in visites else (x, y)
+    if not jeu._dans_plateau(x, y):
+        return x, y
+    case = jeu.cases[y][x]
+    if not case.type_case.est_tapis:
+        return x, y
+    direction = case.direction_tapis()
+    suivant = (x + direction.value[0], y + direction.value[1])
+    if (
+        jeu._dans_plateau(*suivant)
+        and jeu._passage_possible(x, y, direction)
+    ):
+        return suivant
+    return x, y
 
 
 def peut_tirer(jeu, position, direction, couleur):
@@ -165,22 +179,48 @@ def ennemi_vise_case(jeu, position, couleur):
     return False
 
 
-def extraire_caracteristiques(jeu, robot, direction, vitesse=0):
+def extraire_caracteristiques(jeu, robot, action, vitesse=0):
     """Transforme l'état du jeu et une action en vecteur numérique.
 
     - Description : calcule les indicateurs utilisés par le perceptron pour
-      évaluer une direction et la vitesse de sa carte.
-    - Prérequis : `robot` doit appartenir à `jeu` et `direction` être valide.
-    - Arguments : `jeu` (`Jeu`), `robot` (`Robot`), `direction` (`Direction`),
+      évaluer directement l'action et la vitesse de sa carte.
+    - Prérequis : `robot` doit appartenir à `jeu` et `action` être valide.
+    - Arguments : `jeu` (`Jeu`), `robot` (`Robot`), `action` (`ActionCarte`),
       `vitesse` (`int`, valeur par défaut : `0`).
     - Retourne : vecteur des caractéristiques (`list[float]`).
     """
-    mouvement_possible = direction_possible(jeu, robot, direction)
+    actions = {
+        ActionCarte.AVANCER: (1.0, 0.0, 0.0),
+        ActionCarte.TOURNER_DROITE: (0.0, 1.0, 0.0),
+        ActionCarte.TOURNER_GAUCHE: (0.0, 0.0, 1.0),
+    }
+    action_avancer, action_tourner_droite, action_tourner_gauche = actions.get(
+        action, (0.0, 0.0, 0.0)
+    )
+    est_avancement = action == ActionCarte.AVANCER
+    direction = _orientation_apres_action(robot, action)
+    mouvement_possible = (
+        direction_possible(jeu, robot, direction)
+        if est_avancement else action in actions
+    )
     if not mouvement_possible:
-        return [-1.0] + [0.0] * (len(NOMS_CARACTERISTIQUES) - 1)
+        return (
+            [-1.0] + [0.0] * (len(NOMS_CARACTERISTIQUES) - 6)
+            + [
+                action_avancer,
+                action_tourner_droite,
+                action_tourner_gauche,
+                0.0,
+                0.0,
+            ]
+        )
 
-    nouvelle_position = destination_apres_tapis(
-        jeu, robot.x + direction.value[0], robot.y + direction.value[1]
+    nouvelle_position = (
+        destination_apres_tapis(
+            jeu, robot.x + direction.value[0], robot.y + direction.value[1]
+        )
+        if est_avancement
+        else (robot.x, robot.y)
     )
     reparations = [
         (x, y) for y, ligne in enumerate(jeu.cases)
@@ -192,17 +232,58 @@ def extraire_caracteristiques(jeu, robot, direction, vitesse=0):
     ]
     objectifs = objectifs_robot(jeu, robot)
     arrivee = jeu.cases[nouvelle_position[1]][nouvelle_position[0]]
+    distance_maximale = max(1, jeu.largeur + jeu.hauteur - 2)
+    ennemis = [
+        autre for autre in jeu.robots
+        if autre is not robot
+        and not autre.est_detruit
+        and autre.couleur != robot.couleur
+    ]
+    allies_actifs = [
+        autre for autre in jeu.robots
+        if not autre.est_detruit and autre.couleur == robot.couleur
+    ]
+    drapeaux_captures = sum(
+        drapeau.equipe_capture == robot.couleur
+        for drapeau, _, _ in jeu.drapeaux
+    )
+    nombre_drapeaux = max(1, len(jeu.drapeaux))
+    drapeau_atteint = any(
+        (x, y) == nouvelle_position
+        and drapeau.couleur_origine != robot.couleur
+        and drapeau.equipe_capture != robot.couleur
+        for drapeau, x, y in jeu.drapeaux
+    )
+    distance_ennemi = (
+        distance_minimale(
+            *nouvelle_position,
+            [(ennemi.x, ennemi.y) for ennemi in ennemis],
+        )
+        if ennemis else distance_maximale
+    )
+    variation_reparation = (
+        distance_minimale(robot.x, robot.y, reparations)
+        - distance_minimale(*nouvelle_position, reparations)
+        if est_avancement and robot.pv < 3 else 0.0
+    )
+    variation_bonus = (
+        distance_minimale(robot.x, robot.y, bonus)
+        - distance_minimale(*nouvelle_position, bonus)
+        if est_avancement and robot.pv >= 3 else 0.0
+    )
+    variation_drapeau = (
+        distance_minimale(robot.x, robot.y, objectifs)
+        - distance_minimale(*nouvelle_position, objectifs)
+        if est_avancement else 0.0
+    )
     return [
         1.0,
-        distance_minimale(robot.x, robot.y, reparations)
-        - distance_minimale(*nouvelle_position, reparations) if robot.pv < 3 else 0.0,
-        distance_minimale(robot.x, robot.y, bonus)
-        - distance_minimale(*nouvelle_position, bonus) if robot.pv >= 3 else 0.0,
-        distance_minimale(robot.x, robot.y, objectifs)
-        - distance_minimale(*nouvelle_position, objectifs),
-        float(arrivee.type_case == TypeCase.REPARATION and robot.pv < 3),
-        float(arrivee.type_case == TypeCase.BONUS),
-        float(any(
+        variation_reparation,
+        variation_bonus,
+        variation_drapeau,
+        float(est_avancement and arrivee.type_case == TypeCase.REPARATION and robot.pv < 3),
+        float(est_avancement and arrivee.type_case == TypeCase.BONUS),
+        float(est_avancement and any(
             autre is not robot and not autre.est_detruit
             and autre.couleur == robot.couleur
             and (autre.x, autre.y) == nouvelle_position
@@ -213,7 +294,36 @@ def extraire_caracteristiques(jeu, robot, direction, vitesse=0):
         float(nouvelle_position in robot.positions_precedentes),
         float(nouvelle_position == (robot.x, robot.y)),
         float(vitesse) / 10.0,
+        robot.pv / 3.0,
+        distance_ennemi / distance_maximale,
+        len(allies_actifs) / max(1, len(jeu.robots)),
+        len(ennemis) / max(1, len(jeu.robots)),
+        drapeaux_captures / nombre_drapeaux,
+        min(1.0, robot.bonus_degats / 2.0),
+        min(1.0, robot.bouclier / 2.0),
+        action_avancer,
+        action_tourner_droite,
+        action_tourner_gauche,
+        float(est_avancement and drapeau_atteint),
+        float(est_avancement and drapeau_atteint and
+              drapeaux_captures + 1 >= nombre_drapeaux),
     ]
+
+
+def _orientation_apres_action(robot, action):
+    """Retourne l'orientation obtenue après une action de rotation."""
+    ordres = {
+        ActionCarte.TOURNER_GAUCHE: (
+            Direction.NORD, Direction.OUEST, Direction.SUD, Direction.EST
+        ),
+        ActionCarte.TOURNER_DROITE: (
+            Direction.NORD, Direction.EST, Direction.SUD, Direction.OUEST
+        ),
+    }
+    ordre = ordres.get(action)
+    if ordre is None:
+        return robot.orientation
+    return ordre[(ordre.index(robot.orientation) + 1) % 4]
 
 
 def direction_possible(jeu, robot, direction):

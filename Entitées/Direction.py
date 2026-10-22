@@ -1,6 +1,6 @@
 """
-Auteur : Perles Alexis
-Date de dernière modification : 30/09/2026
+Auteur : Perles Alexis, Maelys Rameau
+Date de dernière modification : 22/10/2026
 Contenu : Définit les quatre directions de déplacement du jeu.
 """
 
@@ -15,6 +15,5 @@ class Direction(Enum):
 
 class ActionCarte(Enum):
     AVANCER = "Avancer"
-    RECULER = "Reculer"
     TOURNER_DROITE = "Tourner à droite"
     TOURNER_GAUCHE = "Tourner à gauche"

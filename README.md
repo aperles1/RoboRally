@@ -30,8 +30,8 @@ sauvegardés constituent l'état utile pour continuer.
 - `Entitées/Robot.py` : définit les robots, leurs PV, bonus et orientations ;
 - `Perceptron/ControleurRobot.py` : contrôle les décisions de l'IA et le choix des cartes ;
 - `Perceptron/ModelePerceptron.py` : définit le modèle, sa formule et son apprentissage ;
-- `Perceptron/Caracteristiques.py` : extrait les données numériques du jeu pour le modèle ;
-- `Perceptron/Entrainement.py` : fait jouer plusieurs parties et entraîne l'IA avec des récompenses ;
+- `Perceptron/Caracteristiques.py` : extrait les données stratégiques et les données d'état normalisées pour le modèle, sans dupliquer les variations d'objectif ;
+- `Perceptron/Entrainement.py` : fait jouer plusieurs parties et entraîne l'IA avec des récompenses différées sur trois cartes ;
 - `Jeu/Plateau.py` : crée et affiche le plateau avec pygame ;
 - `Entitées/Case.py` : définit les cases, terrains et murs ;
 - `Entitées/TypeCase.py` : liste les types de cases ;

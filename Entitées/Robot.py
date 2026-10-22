@@ -1,6 +1,6 @@
 """
-Auteur : Perles Alexis
-Date de dernière modification : 30/09/2026
+Auteur : Perles Alexis, Maelys Rameau
+Date de dernière modification : 22/10/2026
 Contenu : Modélise les robots, leurs déplacements et leurs états.
 """
 
@@ -75,13 +75,9 @@ class Robot:
                 self.bouclier = 2
 
     def executer_action(self, action: ActionCarte) -> None:
-        """Exécute une action unique : soit avancer/reculer, soit tourner."""
+        """Exécute une action unique : avancer ou tourner."""
         if action == ActionCarte.AVANCER:
             self.deplacer(self.orientation)
-        elif action == ActionCarte.RECULER:
-            dx, dy = self.orientation.value
-            self.x -= dx
-            self.y -= dy
         elif action == ActionCarte.TOURNER_GAUCHE:
             ordre = [Direction.NORD, Direction.OUEST, Direction.SUD, Direction.EST]
             idx = ordre.index(self.orientation)

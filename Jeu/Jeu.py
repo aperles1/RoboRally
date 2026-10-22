@@ -1,6 +1,6 @@
 """
 Auteur : Perles Alexis
-Date de dernière modification : 30/09/2026
+Date de dernière modification : 22/10/2026
 Contenu : Contient les règles, les déplacements et les combats de RoboRally.
 """
 
@@ -45,6 +45,7 @@ class Jeu:
         self.aleatoire = random.Random(graine)
         self.mains = {}
         self.cartes_du_tour = []
+        self._fins_de_manche = []
         self.derniers_deplacements = []
         self.drapeaux = []
         self.numero_tour = 0
@@ -75,6 +76,7 @@ class Jeu:
             for robot in self.robots if not robot.est_detruit
         }
         self.cartes_du_tour = []
+        self._fins_de_manche = []
         self._organiser_cartes_par_manches()
 
     def installer_cartes(self, cartes_par_robot):
@@ -93,6 +95,7 @@ class Jeu:
             if not robot.est_detruit
         }
         self.cartes_du_tour = []
+        self._fins_de_manche = []
         self._organiser_cartes_par_manches()
 
     def _organiser_cartes_par_manches(self):
@@ -127,6 +130,9 @@ class Jeu:
             ]
             manche.sort(key=lambda element: element[1].vitesse, reverse=True)
             self.cartes_du_tour.extend(manche)
+            self._fins_de_manche.extend(
+                index == len(manche) - 1 for index in range(len(manche))
+            )
 
     def carte_actuelle(self):
         """Retourne la carte prioritaire de la manche courante.
@@ -229,23 +235,20 @@ class Jeu:
             return None
         robot, carte = actuelle
         self.cartes_du_tour.pop(0)
+        fin_de_manche = self._fins_de_manche.pop(0)
         self.mains[id(robot)].remove(carte)
         self.derniers_deplacements = []
         if jouer and not robot.est_detruit:
-            robot.executer_action(carte.action)
-            # Si l'action effectuée était un avancement, on gère le déplacement en avant
             if carte.action == ActionCarte.AVANCER:
                 self._avancer(robot, robot.orientation, set())
-            elif carte.action == ActionCarte.RECULER:
-                # Calcule la direction opposée pour le déplacement de recul
-                dx, dy = robot.orientation.value
-                direction_opposee = Direction((-dx, -dy))
-                self._avancer(robot, direction_opposee, set())
+            elif carte.action in (
+                ActionCarte.TOURNER_DROITE,
+                ActionCarte.TOURNER_GAUCHE,
+            ):
+                robot.executer_action(carte.action)
             self._tirer(robot)
-        #if jouer and not robot.est_detruit:
-            #robot.orientation = carte.direction
-           # self._avancer(robot, carte.direction, set())
-           # self._tirer(robot)
+        if fin_de_manche and self.equipe_gagnante is None:
+            self._faire_avancer_les_tapis()
         self._actualiser_victoire()
         if not self.cartes_du_tour:
             self._actualiser_victoire()
@@ -332,7 +335,7 @@ class Jeu:
             return False
         robot.positions_precedentes.append(ancienne)
         del robot.positions_precedentes[:-4]
-        robot.deplacer(ActionCarte)
+        robot.deplacer(direction)
         self.derniers_deplacements.append((robot, ancienne, (robot.x, robot.y)))
         if self.animation_callback is not None:
             self.animation_callback()
@@ -359,13 +362,33 @@ class Jeu:
             robot.utiliser_case_bonus("bonus", self.aleatoire)
             case.type_case = TypeCase.VIDE
         self._capturer_drapeau(robot)
-        if case.type_case.est_tapis and (robot.x, robot.y) not in tapis_visites:
-            tapis_visites.add((robot.x, robot.y))
-            if case.rotation is not None:
+
+    def _faire_avancer_les_tapis(self):
+        """Fait avancer chaque robot sur son tapis d'une seule case.
+
+        Le déplacement est résolu à la fin d'une manche. Les positions sont
+        mémorisées avant les déplacements afin qu'un robot ne soit pas déplacé
+        deux fois par le même tapis.
+        """
+        robots_sur_tapis = [
+            (
+                robot,
+                (robot.x, robot.y),
+                self.cases[robot.y][robot.x].direction_tapis(),
+                self.cases[robot.y][robot.x].rotation,
+            )
+            for robot in self.robots
+            if not robot.est_detruit
+            and self.cases[robot.y][robot.x].type_case.est_tapis
+        ]
+        for robot, position, direction, rotation in robots_sur_tapis:
+            if robot.est_detruit or (robot.x, robot.y) != position:
+                continue
+            if rotation is not None:
                 robot.orientation = self._orientation_apres_rotation(
                     robot.orientation
                 )
-            self._avancer(robot, case.direction_tapis(), tapis_visites)
+            self._avancer(robot, direction, set())
 
     @staticmethod
     def _orientation_apres_rotation(orientation: Direction) -> Direction:
