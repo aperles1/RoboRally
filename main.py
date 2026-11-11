@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 """
 Auteur : Perles Alexis
-Date de dernière modification : 30/09/2026
+Date de dernière modification : 10/11/2026
 Contenu : Lance la partie et orchestre la boucle graphique pygame.
 """
 
@@ -8,31 +10,34 @@ Contenu : Lance la partie et orchestre la boucle graphique pygame.
 
 import argparse
 
-import pygame
+try:
+    import pygame
+except ImportError:
+    pygame = None
 
-from Entitées.Direction import Direction
-from Entitées.Drapeau import Drapeau
-from Entitées.Robot import Robot
-from Jeu.Jeu import Jeu
-from Jeu.Plateau import (
+from entites.direction import Direction
+from entites.drapeau import Drapeau
+from entites.robot import Robot
+from regles.jeu import Jeu
+from affichage.dessin import (
     TAILLE_PLATEAU,
     afficher_tir,
     dessiner,
     creer_images,
-    creer_plateau,
 )
-from Perceptron import ControleurRobot
-from Perceptron.Entrainement import EntraineurPerceptron
-from Perceptron.ModelePerceptron import Perceptron
+from regles.generation import creer_plateau
+from ia import ControleurRobot
+from ia.entrainement import EntraineurPerceptron
+from ia.perceptron import Perceptron, charger_perceptron, erreur_quadratique_moyenne
+from ia.reseau_neurones import ReseauNeurones
 
 
-def creer_jeu():
-    """Construit une partie avec le plateau, les robots et les drapeaux.
-
-    - Description : assemble tous les objets nécessaires au lancement du jeu.
-    - Prérequis : les constantes et classes importées doivent être disponibles.
-    - Arguments : aucun.
-    - Retourne : partie et murs du plateau (`tuple[Jeu, dict]`).
+def creer_jeu(graine=None):
+    """
+    Role : assemble tous les objets nécessaires au lancement du jeu.
+    Entrees : aucun.
+    Sorties : partie et murs du plateau (`tuple[Jeu, dict]`).
+    Pré-requis : les constantes et classes importées doivent être disponibles.
     """
     cases, murs = creer_plateau()
     robots = [
@@ -41,7 +46,7 @@ def creer_jeu():
         Robot("Robot Rouge 1", 10, 11, Direction.OUEST, "rouge"),
         Robot("Robot Rouge 2", 11, 11, Direction.OUEST, "rouge"),
     ]
-    jeu = Jeu(robots, TAILLE_PLATEAU, TAILLE_PLATEAU, cases)
+    jeu = Jeu(robots, TAILLE_PLATEAU, TAILLE_PLATEAU, cases, graine)
     jeu.drapeaux = [
         (Drapeau("bleu"), 3, 1),
         (Drapeau("bleu"), 4, 4),
@@ -51,13 +56,26 @@ def creer_jeu():
     return jeu, murs
 
 
-def jouer_un_cycle_ia(jeu, ia):
-    """Résout la prochaine carte avec l'intelligence artificielle.
+def creer_partie_evaluation():
+    """
+    Role : construit une partie d'évaluation avec une graine dédiée.
+    Entrees : aucune
+    Sorties : tuple : jeu et murs
+    Pré-requis : le plateau est disponible
+    """
+    creer_partie_evaluation.compteur += 1
+    return creer_jeu(1_000_000 + creer_partie_evaluation.compteur)
 
-    - Description : prépare un tour si nécessaire, entraîne l'IA puis joue la carte courante.
-    - Prérequis : `jeu` doit être un objet `Jeu` et `ia` un objet `ControleurRobot`.
-    - Arguments : `jeu` (`Jeu`), `ia` (`ControleurRobot`).
-    - Retourne : rien (`None`).
+
+creer_partie_evaluation.compteur = 0
+
+
+def jouer_un_cycle_ia(jeu, ia):
+    """
+    Role : prépare un tour si nécessaire, entraîne l'IA puis joue la carte courante.
+    Entrees : `jeu` (`Jeu`), `ia` (`ControleurRobot`).
+    Sorties : rien (`None`).
+    Pré-requis : `jeu` doit être un objet `Jeu` et `ia` un objet `ControleurRobot`.
     """
     if not jeu.cartes_du_tour:
         ia.preparer_tour(jeu)
@@ -69,20 +87,20 @@ def jouer_un_cycle_ia(jeu, ia):
     jeu.jouer_carte_actuelle(jouer)
 
 
-def main() -> None:
-    """Lance la boucle graphique principale de RoboRally.
-
-    - Description : initialise pygame, affiche le plateau et fait jouer l'IA.
-    - Prérequis : pygame doit être installé et les images du projet accessibles.
-    - Arguments : aucun.
-    - Retourne : rien (`None`).
+def main(chemin_modele="modeles/modele_perceptron.json") -> None:
+    """
+    Role : initialise pygame, affiche le plateau et fait jouer l'IA.
+    Entrees : chemin_modele (`str`) : fichier JSON du modèle à visualiser.
+    Sorties : rien (`None`).
+    Pré-requis : pygame doit être installé et les images du projet accessibles.
     """
     pygame.init()
     fenetre = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     pygame.display.set_caption("RoboRally - Plateau")
     jeu, murs = creer_jeu()
     images = creer_images()
-    ia = ControleurRobot()
+    ia = ControleurRobot(charger_perceptron(chemin_modele))
+    jeu.controleur = ia
     horloge = pygame.time.Clock()
     jeu.animation_callback = lambda: afficher_animation(
         fenetre, jeu, murs, images, horloge
@@ -116,52 +134,73 @@ def main() -> None:
 
 
 def afficher_animation(fenetre, jeu, murs, images, horloge):
-    """Affiche une étape de déplacement pendant une animation.
-
-    - Description : redessine le plateau puis ralentit brièvement l'affichage.
-    - Prérequis : pygame doit être initialisé et les objets de rendu valides.
-    - Arguments : `fenetre` (`pygame.Surface`), `jeu` (`Jeu`), `murs` (`dict`),
-      `images` (`dict`), `horloge` (`pygame.time.Clock`).
-    - Retourne : rien (`None`).
+    """
+    Role : redessine le plateau puis ralentit brièvement l'affichage.
+    Entrees : `fenetre` (`pygame.Surface`), `jeu` (`Jeu`), `murs` (`dict`), `images` (`dict`), `horloge` (`pygame.time.Clock`).
+    Sorties : rien (`None`).
+    Pré-requis : pygame doit être initialisé et les objets de rendu valides.
     """
     dessiner(fenetre, jeu, murs, images)
     pygame.display.flip()
     horloge.tick(12)
 
 
-def lancer_entrainement(nombre_parties, chemin_modele, nombre_max_tours=100):
-    """Lance l'entraînement autonome de l'IA depuis le programme principal.
-
-    - Description : charge un modèle existant s'il est présent, joue plusieurs
-      parties sans pygame et sauvegarde les nouveaux paramètres.
-    - Prérequis : `nombre_parties` et `nombre_max_tours` doivent être positifs.
-    - Arguments : `nombre_parties` (`int`), `chemin_modele` (`str`),
-      `nombre_max_tours` (`int`).
-    - Retourne : statistiques des parties (`list[dict]`).
+def lancer_entrainement(
+    nombre_parties, chemin_modele, nombre_max_tours=1000,
+    nombre_parties_evaluation=400, utiliser_reseau=False,
+):
+    """
+    Role : charge un modèle existant s'il est présent, joue plusieurs parties sans pygame et sauvegarde les nouveaux paramètres.
+    Entrees : `nombre_parties` (`int`), `chemin_modele` (`str`), `nombre_max_tours` (`int`), `utiliser_reseau` (`bool`).
+    Sorties : statistiques des parties (`list[dict]`).
+    Pré-requis : `nombre_parties` et `nombre_max_tours` doivent être positifs.
     """
     try:
-        perceptron = Perceptron.charger(chemin_modele)
-    except FileNotFoundError:
-        perceptron = None
-    controleur = ControleurRobot(perceptron)
+        perceptron = charger_perceptron(chemin_modele)
+        if utiliser_reseau and not isinstance(perceptron, ReseauNeurones):
+            raise ValueError("Le fichier contient un perceptron.")
+        controleur = ControleurRobot(perceptron)
+    except (FileNotFoundError, ValueError, KeyError):
+        controleur = ControleurRobot(reseau=utiliser_reseau)
     entraineur = EntraineurPerceptron(
-        creer_jeu, controleur, nombre_max_tours
+        creer_jeu,
+        controleur,
+        nombre_max_tours,
+        creer_jeu_evaluation=creer_partie_evaluation,
     )
     resultats = entraineur.entrainer_et_sauvegarder(
-        nombre_parties, chemin_modele
+        nombre_parties, chemin_modele, nombre_parties_evaluation
     )
     print(f"{nombre_parties} partie(s) d'entraînement terminée(s).")
     print(f"Modèle sauvegardé dans : {chemin_modele}")
+    moyenne = sum(resultat["recompense"] for resultat in resultats) / len(resultats)
+    parties_terminees = sum(
+        resultat["equipe_gagnante"] is not None for resultat in resultats
+    )
+    print(
+        "Erreur quadratique moyenne : "
+        f"{erreur_quadratique_moyenne(controleur.perceptron):.4f}"
+    )
+    print(
+        "Taux de parties terminées : "
+        f"{parties_terminees / len(resultats):.2%}"
+    )
+    print(f"Récompense moyenne : {moyenne:.2f}")
+    statistiques = controleur.perceptron.statistiques
+    print(
+        f"Évaluation ({nombre_parties_evaluation} parties) : "
+        f"{statistiques.get('evaluation_taux_termination', 0):.2%} de parties terminées, "
+        f"{statistiques.get('evaluation_accord_oracle', 0):.2%} d'accord oracle"
+    )
     return resultats
 
 
 def analyser_arguments():
-    """Construit l'interface en ligne de commande du programme.
-
-    - Description : permet de choisir entre le jeu graphique et l'entraînement.
-    - Prérequis : aucun.
-    - Arguments : aucun.
-    - Retourne : arguments analysés (`argparse.Namespace`).
+    """
+    Role : permet de choisir entre le jeu graphique et l'entraînement.
+    Entrees : aucun.
+    Sorties : arguments analysés (`argparse.Namespace`).
+    Pré-requis : aucun.
     """
     analyseur = argparse.ArgumentParser(description="RoboRally")
     analyseur.add_argument(
@@ -172,14 +211,26 @@ def analyser_arguments():
     )
     analyseur.add_argument(
         "--modele",
-        default="modele_perceptron.json",
+        default="modeles/modele_perceptron.json",
         help="fichier JSON utilisé pour charger et sauvegarder les poids",
     )
     analyseur.add_argument(
         "--tours-max",
         type=int,
-        default=100,
+        default=1000,
         help="nombre maximal de cartes jouées par partie",
+    )
+    analyseur.add_argument(
+        "--evaluation",
+        type=int,
+        default=400,
+        metavar="PARTIES",
+        help="nombre de parties d'évaluation (minimum 400)",
+    )
+    analyseur.add_argument(
+        "--reseau",
+        action="store_true",
+        help="utilise le réseau de neurones au lieu du perceptron",
     )
     return analyseur.parse_args()
 
@@ -191,6 +242,8 @@ if __name__ == "__main__":
             arguments.entrainer,
             arguments.modele,
             arguments.tours_max,
+            arguments.evaluation,
+            arguments.reseau,
         )
     else:
-        main()
+        main(arguments.modele)

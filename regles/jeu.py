@@ -1,6 +1,6 @@
 """
 Auteur : Perles Alexis
-Date de dernière modification : 22/10/2026
+Date de dernière modification : 10/11/2026
 Contenu : Contient les règles, les déplacements et les combats de RoboRally.
 """
 
@@ -12,10 +12,12 @@ l'interface graphique.
 
 import random
 
-from Entitées.Carte import Carte
-from Entitées.Direction import Direction, ActionCarte
-from Entitées.Robot import Robot
-from Entitées.TypeCase import TypeCase
+from entites.carte import tirer_main
+from entites.direction import Direction, ActionCarte
+from entites.robot import Robot
+from entites.type_case import TypeCase, est_tapis
+from regles.deplacements import avancer, faire_avancer_les_tapis
+from regles.tir import tirer
 
 
 class Jeu:
@@ -30,13 +32,11 @@ class Jeu:
         cases,
         graine=None,
     ):
-        """Initialise une partie et prépare son premier tour.
-
-        - Description : copie le plateau, configure le hasard et les collections de jeu.
-        - Prérequis : `cases` doit représenter un plateau rectangulaire.
-        - Arguments : `robots` (`list[Robot]`), `largeur` (`int`), `hauteur` (`int`),
-          `cases` (`list[list[Case]]`), `graine` (`int` ou `None`).
-        - Retourne : rien (`None`).
+        """
+        Role : copie le plateau, configure le hasard et les collections de jeu.
+        Entrees : `robots` (`list[Robot]`), `largeur` (`int`), `hauteur` (`int`), `cases` (`list[list[Case]]`), `graine` (`int` ou `None`).
+        Sorties : rien (`None`).
+        Pré-requis : `cases` doit représenter un plateau rectangulaire.
         """
         self.robots = list(robots)
         self.largeur = largeur
@@ -46,31 +46,27 @@ class Jeu:
         self.mains = {}
         self.cartes_du_tour = []
         self._fins_de_manche = []
-        self.derniers_deplacements = []
         self.drapeaux = []
         self.numero_tour = 0
         self.equipe_gagnante = None
         self.animation_callback = None
         self.tir_callback = None
+        self.signature_plateau = None
+        self.distance_actions_cache = {}
         self.nouvelle_pioche()
 
     def nouvelle_pioche(self, cartes_par_robot=None):
-        """Prépare les cartes du nouveau tour.
-
-        - Description : tire cinq cartes aléatoires ou utilise les cartes fournies,
-          puis organise les cartes en manches, une carte par robot et par manche.
-        - Prérequis : les robots doivent posséder l'attribut `est_detruit`.
-        - Arguments : `cartes_par_robot` (`dict[int, list[Carte]]` ou `None`).
-        - Retourne : rien (`None`).
+        """
+        Role : tire cinq cartes aléatoires ou utilise les cartes fournies, puis organise les cartes en manches, une carte par robot et par manche.
+        Entrees : `cartes_par_robot` (`dict[int, list[Carte]]` ou `None`).
+        Sorties : rien (`None`).
+        Pré-requis : les robots doivent posséder l'attribut `est_detruit`.
         """
         self.numero_tour += 1
         # Chaque robot reçoit cinq cartes possibles, puis n'en conserve que trois.
         self.mains = cartes_par_robot or {
             id(robot): self.aleatoire.sample(
-                [
-                    Carte.aleatoire(self.aleatoire)
-                    for _ in range(self.CARTES_A_TIRER)
-                ],
+                tirer_main(self.aleatoire, self.CARTES_A_TIRER),
                 self.CARTES_PAR_ROBOT,
             )
             for robot in self.robots if not robot.est_detruit
@@ -80,13 +76,11 @@ class Jeu:
         self._organiser_cartes_par_manches()
 
     def installer_cartes(self, cartes_par_robot):
-        """Installe les cartes choisies pour le tour courant.
-
-        - Description : associe les cartes aux robots actifs et les organise en
-          manches, une carte par robot et par manche, selon la vitesse.
-        - Prérequis : les clés du dictionnaire doivent être des identifiants de robots.
-        - Arguments : `cartes_par_robot` (`dict[int, list[Carte]]`).
-        - Retourne : rien (`None`).
+        """
+        Role : associe les cartes aux robots actifs et les organise en manches, une carte par robot et par manche, selon la vitesse.
+        Entrees : `cartes_par_robot` (`dict[int, list[Carte]]`).
+        Sorties : rien (`None`).
+        Pré-requis : les clés du dictionnaire doivent être des identifiants de robots.
         """
         self.numero_tour += 1
         self.mains = {
@@ -99,12 +93,11 @@ class Jeu:
         self._organiser_cartes_par_manches()
 
     def _organiser_cartes_par_manches(self):
-        """Construit la file d'exécution des cartes du tour.
-
-        Chaque robot trie sa main par vitesse décroissante. La première manche
-        contient donc la carte la plus rapide de chaque robot, puis les
-        manches suivantes contiennent les cartes restantes dans le même ordre.
-        Les cartes d'une manche sont ensuite jouées par vitesse décroissante.
+        """
+        Role : aucun
+        Entrees : aucune
+        Sorties : aucune
+        Pré-requis : aucun
         """
         mains_triees = {
             id(robot): sorted(
@@ -135,22 +128,20 @@ class Jeu:
             )
 
     def carte_actuelle(self):
-        """Retourne la carte prioritaire de la manche courante.
-
-        - Description : lit le premier élément de la file des cartes du tour.
-        - Prérequis : aucun.
-        - Arguments : aucun.
-        - Retourne : couple robot-carte (`tuple[Robot, Carte]`) ou `None`.
+        """
+        Role : lit le premier élément de la file des cartes du tour.
+        Entrees : aucun.
+        Sorties : couple robot-carte (`tuple[Robot, Carte]`) ou `None`.
+        Pré-requis : aucun.
         """
         return self.cartes_du_tour[0] if self.cartes_du_tour else None
 
     def deplacement_mene_au_trou(self, robot: Robot, direction: Direction) -> bool:
-        """Vérifie si un déplacement finit dans un trou.
-
-        - Description : suit la case cible et les tapis successifs jusqu'à un arrêt.
-        - Prérequis : `robot` doit être présent sur le plateau.
-        - Arguments : `robot` (`Robot`), `direction` (`Direction`).
-        - Retourne : déplacement dangereux ou non (`bool`).
+        """
+        Role : suit la case cible et les tapis successifs jusqu'à un arrêt.
+        Entrees : `robot` (`Robot`), `direction` (`Direction`).
+        Sorties : déplacement dangereux ou non (`bool`).
+        Pré-requis : `robot` doit être présent sur le plateau.
         """
         if not self._passage_possible(robot.x, robot.y, direction):
             return False
@@ -169,7 +160,7 @@ class Jeu:
             case = self.cases[y][x]
             if case.type_case == TypeCase.TROU:
                 return True
-            if not case.type_case.est_tapis:
+            if not est_tapis(case.type_case):
                 return False
             tapis_direction = case.direction_tapis()
             x += tapis_direction.value[0]
@@ -178,14 +169,30 @@ class Jeu:
                 return False
         return False
 
-    def tableau_plateau(self):
-        """Encode le plateau dans un tableau numérique exploitable par l'IA.
+    def dans_plateau(self, x, y):
+        """
+        Role : teste si une position appartient au plateau.
+        Entrees : x (int) : abscisse ; y (int) : ordonnee
+        Sorties : bool : position valide
+        Pré-requis : aucun
+        """
+        return self._dans_plateau(x, y)
 
-        - Description : transforme chaque case, robot, drapeau et mur en 16 indicateurs
-          (vide, trou, bonus, réparation, tapis, robots, drapeaux et murs).
-        - Prérequis : les dimensions de `cases` doivent correspondre au plateau.
-        - Arguments : aucun.
-        - Retourne : tableau encodé (`list[list[list[float]]]`).
+    def passage_possible(self, x, y, direction):
+        """
+        Role : teste si un passage est libre entre deux cases.
+        Entrees : x (int) : abscisse ; y (int) : ordonnee ; direction (Direction) : direction
+        Sorties : bool : passage libre
+        Pré-requis : x et y sont dans le plateau
+        """
+        return self._passage_possible(x, y, direction)
+
+    def tableau_plateau(self):
+        """
+        Role : transforme chaque case, robot, drapeau et mur en 16 indicateurs (vide, trou, bonus, réparation, tapis, robots, drapeaux et murs).
+        Entrees : aucun.
+        Sorties : tableau encodé (`list[list[list[float]]]`).
+        Pré-requis : les dimensions de `cases` doivent correspondre au plateau.
         """
         tableau = []
         for y, ligne in enumerate(self.cases):
@@ -222,13 +229,11 @@ class Jeu:
         return tableau
 
     def jouer_carte_actuelle(self, jouer):
-        """Joue ou passe la carte prioritaire.
-
-        - Description : retire la carte, déplace et fait tirer le robot si demandé,
-          puis actualise la victoire.
-        - Prérequis : la file des cartes doit contenir des cartes valides.
-        - Arguments : `jouer` (`bool`).
-        - Retourne : robot concerné (`Robot`) ou `None`.
+        """
+        Role : retire la carte, déplace et fait tirer le robot si demandé, puis actualise la victoire.
+        Entrees : `jouer` (`bool`).
+        Sorties : robot concerné (`Robot`) ou `None`.
+        Pré-requis : la file des cartes doit contenir des cartes valides.
         """
         actuelle = self.carte_actuelle()
         if actuelle is None:
@@ -237,33 +242,32 @@ class Jeu:
         self.cartes_du_tour.pop(0)
         fin_de_manche = self._fins_de_manche.pop(0)
         self.mains[id(robot)].remove(carte)
-        self.derniers_deplacements = []
         if jouer and not robot.est_detruit:
+            robot.actions_recentes.append(carte.action)
+            del robot.actions_recentes[:-4]
             if carte.action == ActionCarte.AVANCER:
-                self._avancer(robot, robot.orientation, set())
+                avancer(self, robot, robot.orientation, set())
             elif carte.action in (
                 ActionCarte.TOURNER_DROITE,
                 ActionCarte.TOURNER_GAUCHE,
             ):
                 robot.executer_action(carte.action)
-            self._tirer(robot)
+            tirer(self, robot)
         if fin_de_manche and self.equipe_gagnante is None:
-            self._faire_avancer_les_tapis()
+            faire_avancer_les_tapis(self)
         self._actualiser_victoire()
         if not self.cartes_du_tour:
             self._actualiser_victoire()
         return robot
 
     def _actualiser_victoire(self) -> None:
-        """Détermine si une équipe a gagné.
-
-        - Description : vérifie si tous les drapeaux ont la même couleur ou
-          si les adversaires sont éliminés.
-        - Prérequis : les robots et drapeaux doivent être cohérents.
-        - Arguments : aucun.
-        - Retourne : rien (`None`).
         """
-        equipes = {robot.couleur for robot in self.robots}
+        Role : vérifie si tous les drapeaux ont la même couleur ou si les adversaires sont éliminés.
+        Entrees : aucun.
+        Sorties : rien (`None`).
+        Pré-requis : les robots et drapeaux doivent être cohérents.
+        """
+        equipes = dict.fromkeys(robot.couleur for robot in self.robots)
         for equipe in equipes:
             if self.drapeaux and all(
                 drapeau.couleur == equipe for drapeau, _, _ in self.drapeaux
@@ -277,13 +281,11 @@ class Jeu:
     def _avancer(
         self, robot, direction, tapis_visites
     ):
-        """Tente de déplacer un robot et de déclencher sa case d'arrivée.
-
-        - Description : vérifie le passage, pousse un robot si nécessaire, puis avance.
-        - Prérequis : `robot` doit appartenir à la partie.
-        - Arguments : `robot` (`Robot`), `direction` (`Direction`),
-          `tapis_visites` (`set[tuple[int, int]]`).
-        - Retourne : déplacement effectué (`bool`).
+        """
+        Role : vérifie le passage, pousse un robot si nécessaire, puis avance.
+        Entrees : `robot` (`Robot`), `direction` (`Direction`), `tapis_visites` (`set[tuple[int, int]]`).
+        Sorties : déplacement effectué (`bool`).
+        Pré-requis : `robot` doit appartenir à la partie.
         """
         if robot.est_detruit or not self._passage_possible(robot.x, robot.y, direction):
             return False
@@ -297,13 +299,11 @@ class Jeu:
         return True
 
     def _pousser(self, robot, direction, visites):
-        """Pousse récursivement une chaîne de robots.
-
-        - Description : libère la case suivante avant de déplacer le robot courant.
-        - Prérequis : `robot` doit être actif et `direction` valide.
-        - Arguments : `robot` (`Robot`), `direction` (`Direction`),
-          `visites` (`set[int]`).
-        - Retourne : poussée effectuée (`bool`).
+        """
+        Role : libère la case suivante avant de déplacer le robot courant.
+        Entrees : `robot` (`Robot`), `direction` (`Direction`), `visites` (`set[int]`).
+        Sorties : poussée effectuée (`bool`).
+        Pré-requis : `robot` doit être actif et `direction` valide.
         """
         if id(robot) in visites or not self._passage_possible(robot.x, robot.y, direction):
             return False
@@ -318,12 +318,11 @@ class Jeu:
         return True
 
     def _deplacer(self, robot: Robot, direction: Direction) -> bool:
-        """Déplace réellement un robot et mémorise son trajet.
-
-        - Description : met à jour les coordonnées, l'historique et l'animation.
-        - Prérequis : la nouvelle position doit être libre.
-        - Arguments : `robot` (`Robot`), `direction` (`Direction`).
-        - Retourne : déplacement effectué (`bool`).
+        """
+        Role : met à jour les coordonnées, l'historique et l'animation.
+        Entrees : `robot` (`Robot`), `direction` (`Direction`).
+        Sorties : déplacement effectué (`bool`).
+        Pré-requis : la nouvelle position doit être libre.
         """
         ancienne = (robot.x, robot.y)
         nouvelle = (
@@ -333,23 +332,20 @@ class Jeu:
         occupant = self._robot_a(*nouvelle)
         if occupant is not None and occupant is not robot:
             return False
-        robot.positions_precedentes.append(ancienne)
-        del robot.positions_precedentes[:-4]
         robot.deplacer(direction)
-        self.derniers_deplacements.append((robot, ancienne, (robot.x, robot.y)))
+        robot.positions_recentes.append((robot.x, robot.y))
+        del robot.positions_recentes[:-6]
         if self.animation_callback is not None:
             self.animation_callback()
         self._faire_tirer_ennemis_sur(robot)
         return True
 
     def _effet_case(self, robot, tapis_visites):
-        """Applique l'effet de la case atteinte.
-
-        - Description : gère les trous, bonus, réparations, drapeaux, tapis
-          et changements d'orientation des tapis rotateurs.
-        - Prérequis : `robot` doit être positionné dans les limites du plateau.
-        - Arguments : `robot` (`Robot`), `tapis_visites` (`set[tuple[int, int]]`).
-        - Retourne : rien (`None`).
+        """
+        Role : gère les trous, bonus, réparations, drapeaux, tapis et changements d'orientation des tapis rotateurs.
+        Entrees : `robot` (`Robot`), `tapis_visites` (`set[tuple[int, int]]`).
+        Sorties : rien (`None`).
+        Pré-requis : `robot` doit être positionné dans les limites du plateau.
         """
         case = self.cases[robot.y][robot.x]
         if case.type_case == TypeCase.TROU:
@@ -364,11 +360,11 @@ class Jeu:
         self._capturer_drapeau(robot)
 
     def _faire_avancer_les_tapis(self):
-        """Fait avancer chaque robot sur son tapis d'une seule case.
-
-        Le déplacement est résolu à la fin d'une manche. Les positions sont
-        mémorisées avant les déplacements afin qu'un robot ne soit pas déplacé
-        deux fois par le même tapis.
+        """
+        Role : aucun
+        Entrees : aucune
+        Sorties : aucune
+        Pré-requis : aucun
         """
         robots_sur_tapis = [
             (
@@ -379,7 +375,7 @@ class Jeu:
             )
             for robot in self.robots
             if not robot.est_detruit
-            and self.cases[robot.y][robot.x].type_case.est_tapis
+            and est_tapis(self.cases[robot.y][robot.x].type_case)
         ]
         for robot, position, direction, rotation in robots_sur_tapis:
             if robot.est_detruit or (robot.x, robot.y) != position:
@@ -390,31 +386,22 @@ class Jeu:
                 )
             self._avancer(robot, direction, set())
 
-    @staticmethod
-    def _orientation_apres_rotation(orientation: Direction) -> Direction:
-        """Tourne l'orientation du robot de 90 degrés.
-
-        - Description : applique le sens de rotation indiqué par la flèche
-          du tapis rotateur.
-        - Prérequis : `orientation` doit être une valeur de `Direction`.
-        - Arguments : `orientation` (`Direction`).
-        - Retourne : nouvelle orientation (`Direction`).
+    def _orientation_apres_rotation(self, orientation):
         """
-        rotations = {
-            Direction.NORD: Direction.OUEST,
-            Direction.OUEST: Direction.SUD,
-            Direction.SUD: Direction.EST,
-            Direction.EST: Direction.NORD,
-        }
-        return rotations[orientation]
+        Role : applique le sens de rotation indiqué par la flèche du tapis rotateur.
+        Entrees : `orientation` (`Direction`).
+        Sorties : nouvelle orientation (`Direction`).
+        Pré-requis : `orientation` doit être une valeur de `Direction`.
+        """
+        from entites.direction import tourner_gauche
+        return tourner_gauche(orientation)
 
     def _capturer_drapeau(self, robot: Robot) -> None:
-        """Capture tout drapeau situé sous le robot.
-
-        - Description : attribue le drapeau à l'équipe du robot.
-        - Prérequis : les coordonnées des drapeaux doivent être valides.
-        - Arguments : `robot` (`Robot`).
-        - Retourne : rien (`None`).
+        """
+        Role : attribue le drapeau à l'équipe du robot.
+        Entrees : `robot` (`Robot`).
+        Sorties : rien (`None`).
+        Pré-requis : les coordonnées des drapeaux doivent être valides.
         """
         for drapeau, x, y in self.drapeaux:
             if (robot.x, robot.y) == (x, y):
@@ -422,13 +409,11 @@ class Jeu:
                 drapeau.equipe_capture = robot.couleur
 
     def _tirer(self, robot):
-        """Tire sur le premier adversaire visible dans l'orientation du robot.
-
-        - Description : suit la ligne de tir selon l'orientation du robot jusqu'à un mur,
-          un bord ou un robot.
-        - Prérequis : `robot` doit être actif et orienté correctement.
-        - Arguments : `robot` (`Robot`).
-        - Retourne : cible touchée (`Robot`) ou `None`.
+        """
+        Role : suit la ligne de tir selon l'orientation du robot jusqu'à un mur, un bord ou un robot.
+        Entrees : `robot` (`Robot`).
+        Sorties : cible touchée (`Robot`) ou `None`.
+        Pré-requis : `robot` doit être actif et orienté correctement.
         """
         x, y = robot.x, robot.y
         while self._dans_plateau(x + robot.orientation.value[0], y + robot.orientation.value[1]):
@@ -448,13 +433,11 @@ class Jeu:
         return None
 
     def _faire_tirer_ennemis_sur(self, cible):
-        """Déclenche les tirs des ennemis qui voient la cible.
-
-        - Description : fait tirer chaque ennemi actif dont la cible est le
-          premier robot visible dans son orientation.
-        - Prérequis : `cible` doit être un robot actif présent sur le plateau.
-        - Arguments : `cible` (`Robot`).
-        - Retourne : rien (`None`).
+        """
+        Role : fait tirer chaque ennemi actif dont la cible est le premier robot visible dans son orientation.
+        Entrees : `cible` (`Robot`).
+        Sorties : rien (`None`).
+        Pré-requis : `cible` doit être un robot actif présent sur le plateau.
         """
         for tireur in self.robots:
             if tireur is cible or tireur.est_detruit:
@@ -465,13 +448,11 @@ class Jeu:
                 self._tirer(tireur)
 
     def _premier_robot_visible(self, tireur):
-        """Recherche le premier robot visible dans une orientation.
-
-        - Description : avance dans la ligne de tir jusqu'à un mur, un bord ou
-          le premier robot rencontré.
-        - Prérequis : `tireur` doit avoir une orientation valide.
-        - Arguments : `tireur` (`Robot`).
-        - Retourne : premier robot visible (`Robot`) ou `None`.
+        """
+        Role : avance dans la ligne de tir jusqu'à un mur, un bord ou le premier robot rencontré.
+        Entrees : `tireur` (`Robot`).
+        Sorties : premier robot visible (`Robot`) ou `None`.
+        Pré-requis : `tireur` doit avoir une orientation valide.
         """
         x, y = tireur.x, tireur.y
         while self._dans_plateau(
@@ -488,12 +469,11 @@ class Jeu:
         return None
 
     def _passage_possible(self, x: int, y: int, direction: Direction) -> bool:
-        """Vérifie qu'un déplacement franchit deux bords sans mur.
-
-        - Description : contrôle les murs de la case de départ et de la case cible.
-        - Prérequis : `(x, y)` doit être une position du plateau.
-        - Arguments : `x` (`int`), `y` (`int`), `direction` (`Direction`).
-        - Retourne : passage libre ou non (`bool`).
+        """
+        Role : contrôle les murs de la case de départ et de la case cible.
+        Entrees : `x` (`int`), `y` (`int`), `direction` (`Direction`).
+        Sorties : passage libre ou non (`bool`).
+        Pré-requis : `(x, y)` doit être une position du plateau.
         """
         nx, ny = x + direction.value[0], y + direction.value[1]
         if not self._dans_plateau(nx, ny):
@@ -508,21 +488,19 @@ class Jeu:
         )
 
     def _dans_plateau(self, x: int, y: int) -> bool:
-        """Vérifie qu'une position appartient au plateau.
-
-        - Description : compare les coordonnées aux dimensions de la partie.
-        - Prérequis : les dimensions doivent être positives.
-        - Arguments : `x` (`int`), `y` (`int`).
-        - Retourne : position valide ou non (`bool`).
+        """
+        Role : compare les coordonnées aux dimensions de la partie.
+        Entrees : `x` (`int`), `y` (`int`).
+        Sorties : position valide ou non (`bool`).
+        Pré-requis : les dimensions doivent être positives.
         """
         return 0 <= x < self.largeur and 0 <= y < self.hauteur
 
     def _robot_a(self, x, y):
-        """Recherche le robot actif placé à une position.
-
-        - Description : parcourt les robots et ignore ceux qui sont détruits.
-        - Prérequis : aucun.
-        - Arguments : `x` (`int`), `y` (`int`).
-        - Retourne : robot trouvé (`Robot`) ou `None`.
+        """
+        Role : parcourt les robots et ignore ceux qui sont détruits.
+        Entrees : `x` (`int`), `y` (`int`).
+        Sorties : robot trouvé (`Robot`) ou `None`.
+        Pré-requis : aucun.
         """
         return next((r for r in self.robots if not r.est_detruit and (r.x, r.y) == (x, y)), None)

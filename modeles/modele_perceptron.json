@@ -1,0 +1,33 @@
+{
+  "poids": [
+    2.001760699866979,
+    0.7579384130145119,
+    -0.7001311771543379,
+    1.0546845546617718,
+    0.5271605347290742,
+    0.14005451074548078,
+    1.4582099300776417,
+    -0.2143875860681778,
+    -0.5105897600784012,
+    -0.33769130387230284,
+    0.4808626192062924
+  ],
+  "biais": -1.9141919531879972,
+  "taux_apprentissage": 0.01,
+  "statistiques": {
+    "parties": 1000,
+    "victoires": 1000,
+    "taux_victoire": 1.0,
+    "cartes_jouees": 212282,
+    "recompense_moyenne": 14.80189999999998,
+    "accord_oracle": 0.4846281971074457,
+    "evaluation_parties": 400,
+    "evaluation_taux_victoire": 1.0,
+    "evaluation_cartes_moyennes": 210.8775,
+    "evaluation_accord_oracle": 0.49008248439343993,
+    "chemins_calcules": 36302,
+    "chemins_reutilises": 247045,
+    "chemins_memorises": 36302,
+    "erreur_quadratique_moyenne": 3.2069922623291682
+  }
+}

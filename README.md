@@ -1,42 +1,58 @@
 # RoboRally
 
-Projet Python de RoboRally avec affichage graphique `pygame`.
+Auteur : Perles Alexis
+Date de dernière modification : 10/11/2026
+Contenu : Présente l'architecture et les commandes du projet.
 
-## Lancer le projet
+Jeu Python avec affichage `pygame`, sur un plateau de 12 x 12 cases.
+
+## Arborescence
+
+```text
+entites/    directions, cartes, cases, drapeaux et robots
+regles/     jeu, déplacements, tirs et génération du plateau
+affichage/  dessin pygame
+ia/         perceptron, réseau neuronal, caractéristiques, simulation et entraînement
+scripts/    vérification, entraînement et évaluation
+modeles/    modèles JSON du perceptron et du réseau neuronal
+images/     images utilisées par pygame
+main.py     lancement du jeu
+```
+
+Les dépendances suivent un seul sens : `entites <- regles <- ia <- scripts`.
+
+## Commandes
+
+Lancer le jeu graphique :
 
 ```bash
 python3 main.py
 ```
 
-La partie se déroule automatiquement sur un plateau de 12 x 12 cases avec
-deux robots bleus et deux robots rouges.
-
-Pour entraîner l'IA sans afficher pygame :
+Visualiser une partie avec le réseau neuronal entraîné :
 
 ```bash
-python3 main.py --entrainer 1000 --modele modele_perceptron.json
+python3 main.py --modele modeles/modele_reseau.json
 ```
 
-Le fichier JSON est chargé au début s'il existe, puis remplacé avec les poids
-mis à jour à la fin. L'entraînement peut donc être repris sur plusieurs
-exécutions. Les transitions détaillées ne sont pas conservées, car
-l'apprentissage est effectué immédiatement après chaque carte ; les poids
-sauvegardés constituent l'état utile pour continuer.
+Entraîner 200 parties puis sauvegarder le modèle :
 
-## Fichiers du projet
+```bash
+python3 scripts/entrainer.py
+```
 
-- `main.py` : lance la partie et la boucle graphique ;
-- `Jeu/Jeu.py` : contient les règles, déplacements, tirs et victoires ;
-- `Entitées/Robot.py` : définit les robots, leurs PV, bonus et orientations ;
-- `Perceptron/ControleurRobot.py` : contrôle les décisions de l'IA et le choix des cartes ;
-- `Perceptron/ModelePerceptron.py` : définit le modèle, sa formule et son apprentissage ;
-- `Perceptron/Caracteristiques.py` : extrait les données stratégiques et les données d'état normalisées pour le modèle, sans dupliquer les variations d'objectif ;
-- `Perceptron/Entrainement.py` : fait jouer plusieurs parties et entraîne l'IA avec des récompenses différées sur trois cartes ;
-- `Jeu/Plateau.py` : crée et affiche le plateau avec pygame ;
-- `Entitées/Case.py` : définit les cases, terrains et murs ;
-- `Entitées/TypeCase.py` : liste les types de cases ;
-- `Entitées/Direction.py` : définit les directions cardinales ;
-- `Entitées/Carte.py` : définit les cartes de déplacement ;
-- `Entitées/Drapeau.py` : définit les drapeaux et leurs captures ;
-- `images/` : contient les images utilisées pour l'affichage ;
-- `README.md` : présente le projet et son lancement.
+L'entraînement peut aussi être lancé depuis `main.py` :
+
+```bash
+python3 main.py --entrainer 200 --modele modeles/modele_perceptron.json
+```
+
+Entraîner le réseau neuronal :
+
+```bash
+python3 main.py --entrainer 1000 --reseau \
+  --modele modeles/modele_reseau.json --evaluation 400
+```
+
+Le réseau utilise 22 caractéristiques, une couche cachée de 8 neurones ReLU
+et une sortie qui produit le score de chaque carte.
