@@ -15,8 +15,6 @@ from ia.simulation import _simuler, combinaison, prochaine_action
 POIDS_INITIAUX = (
     3.0, 2.0, -1.0, 1.0, -0.5, 0.3,
     2.0, -2.0, -1.0, -1.5, -2.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0,
 )
 if len(POIDS_INITIAUX) != len(NOMS_CARACTERISTIQUES):
     raise ValueError("Les poids initiaux ne correspondent pas aux caractéristiques.")
@@ -46,9 +44,18 @@ class ControleurRobot:
             nombre_entrees = self.perceptron.nombre_entrees
         else:
             nombre_entrees = len(self.perceptron.poids)
-        if nombre_entrees == 11:
-            self.perceptron.poids.extend([0.0] * 11)
-            nombre_entrees = len(self.perceptron.poids)
+        if nombre_entrees == 22:
+            if isinstance(self.perceptron, ReseauNeurones):
+                self.perceptron.poids_caches = [
+                    poids[:len(NOMS_CARACTERISTIQUES)]
+                    for poids in self.perceptron.poids_caches
+                ]
+                self.perceptron.nombre_entrees = len(NOMS_CARACTERISTIQUES)
+            else:
+                self.perceptron.poids = self.perceptron.poids[
+                    :len(NOMS_CARACTERISTIQUES)
+                ]
+            nombre_entrees = len(NOMS_CARACTERISTIQUES)
         if nombre_entrees != len(NOMS_CARACTERISTIQUES):
             raise ValueError("Le modèle JSON n'utilise pas les bonnes caractéristiques.")
 

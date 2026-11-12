@@ -5,7 +5,7 @@ import random
 class ReseauNeurones:
     def __init__(
         self,
-        nombre_entrees=22,
+        nombre_entrees=11,
         nombre_neurones_caches=8,
         taux_apprentissage=0.001,
         graine=0,
@@ -50,13 +50,21 @@ class ReseauNeurones:
         Sorties : ReseauNeurones : réseau reconstruit
         Pré-requis : les paramètres contiennent les poids et biais du réseau
         """
+        nombre_entrees = donnees["nombre_entrees"]
+        poids_caches = donnees["poids_caches"]
+        if nombre_entrees == 22:
+            nombre_entrees = 11
+            poids_caches = [
+                poids_entree[:nombre_entrees]
+                for poids_entree in poids_caches
+            ]
         reseau = cls(
-            donnees["nombre_entrees"],
+            nombre_entrees,
             donnees["nombre_neurones_caches"],
             donnees.get("taux_apprentissage", 0.001),
             erreur_maximale=donnees.get("erreur_maximale", 5.0),
         )
-        reseau.poids_caches = donnees["poids_caches"]
+        reseau.poids_caches = poids_caches
         reseau.biais_caches = donnees["biais_caches"]
         reseau.poids_sortie = donnees["poids_sortie"]
         reseau.biais_sortie = donnees["biais_sortie"]
@@ -90,7 +98,7 @@ class ReseauNeurones:
         Sorties : float : score calculé
         Pré-requis : le nombre de caractéristiques correspond au nombre d'entrées
         """
-        # Chaque neurone caché reçoit les 22 caractéristiques, puis ReLU
+        # Chaque neurone caché reçoit les caractéristiques, puis ReLU
         # conserve uniquement sa réponse positive.
         sorties_cachees = [
             self._relu(

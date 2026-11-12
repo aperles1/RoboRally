@@ -17,17 +17,6 @@ NOMS_CARACTERISTIQUES = (
     "position_deja_visee",
     "action_repetee",
     "rotation_sans_avancer",
-    "gain_distance_carre",
-    "alignement_carre",
-    "distance_actions_carre",
-    "avance_carre",
-    "tourne_droite_carre",
-    "vitesse_carre",
-    "carte_possible_carre",
-    "rotation_opposee_carre",
-    "position_deja_visee_carre",
-    "action_repetee_carre",
-    "rotation_sans_avancer_carre",
 )
 
 
@@ -75,7 +64,7 @@ def extraire_caracteristiques(
     valeurs = [
         max(-1.0, min(1.0, float(valeur))) for valeur in valeurs
     ]
-    return valeurs + [valeur ** 2 for valeur in valeurs]
+    return valeurs
 
 
 def preparer_contexte(jeu, robot):

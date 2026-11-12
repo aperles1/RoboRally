@@ -54,5 +54,5 @@ python3 main.py --entrainer 1000 --reseau \
   --modele modeles/modele_reseau.json --evaluation 400
 ```
 
-Le réseau utilise 22 caractéristiques, une couche cachée de 8 neurones ReLU
+Le réseau utilise 11 caractéristiques, une couche cachée de 8 neurones ReLU
 et une sortie qui produit le score de chaque carte.
